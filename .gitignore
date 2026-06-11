@@ -15,3 +15,4 @@ local.properties
 *.iml
 .kotlin/
 .codex/config.toml
+.playwright-mcp/
