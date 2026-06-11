@@ -1,0 +1,16 @@
+.claude/settings.local.json
+
+# Gradle / Android
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+
+# Local toolchain (provisioned by scripts/setup-toolchain.sh, never committed)
+.tooling/
+
+# IDE
+.idea/
+*.iml
+.kotlin/

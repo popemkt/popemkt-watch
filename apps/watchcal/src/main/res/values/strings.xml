@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WatchCal</string>
+    <string name="channel_reminders">Event reminders</string>
+    <string name="action_snooze">Snooze</string>
+    <string name="action_done">Done</string>
+</resources>

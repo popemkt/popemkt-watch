@@ -1,0 +1,34 @@
+# L2 smell sensors — warn-only (specs/02-code-unit-cohesion.md).
+# Thresholds start at the loose max-band; ratchet targets live in the spec.
+# Promotion of any rule to blocking requires a decision record, not a config edit.
+
+build:
+  maxIssues: 100000 # never fail the build — L2 advises, L1 (Konsist) gates
+
+complexity:
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
+  NestedBlockDepth:
+    active: true
+    threshold: 4
+  LongParameterList:
+    active: true
+    functionThreshold: 6
+    constructorThreshold: 7
+  LongMethod:
+    active: true
+    threshold: 100
+  LargeClass:
+    active: true
+    threshold: 600
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable'] # PascalCase composables are the Compose idiom
+
+style:
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: false
