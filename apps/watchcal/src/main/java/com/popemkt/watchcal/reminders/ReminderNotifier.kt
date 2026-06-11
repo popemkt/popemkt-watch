@@ -1,10 +1,13 @@
 package com.popemkt.watchcal.reminders
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
 import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -29,8 +32,21 @@ class ReminderNotifier(
             CHANNEL_ID,
             context.getString(R.string.channel_reminders),
             NotificationManager.IMPORTANCE_HIGH,
-        )
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        ).apply {
+            setSound(
+                Uri.parse("android.resource://${context.packageName}/${R.raw.watchcal_alarm}"),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 600, 400)
+        }
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+        // Channels are immutable; the soundless v1 channel is superseded.
+        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
     }
 
     fun show(instance: EventInstance) {
@@ -53,6 +69,9 @@ class ReminderNotifier(
             .addAction(0, context.getString(R.string.action_done), done)
             .setDeleteIntent(snooze)
             .build()
+            // Loop channel sound + vibration until the notification is cancelled —
+            // the ring is independent of the full-screen takeover (specs/00 § Alarm-style alert).
+            .apply { flags = flags or Notification.FLAG_INSISTENT }
 
         NotificationManagerCompat.from(context).notify(notificationId(instance), notification)
     }
@@ -80,6 +99,7 @@ class ReminderNotifier(
     }
 
     companion object {
-        const val CHANNEL_ID = "reminders"
+        const val CHANNEL_ID = "reminders_alarm"
+        private const val LEGACY_CHANNEL_ID = "reminders"
     }
 }

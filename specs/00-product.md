@@ -15,11 +15,11 @@ A calendar event reminder on the watch should behave like a personal nag, not a 
 
 A due reminder takes over like an RTOS-watch alarm, not a passive notification:
 
-- When the trigger fires and the screen is off/locked, a **full-screen alert** lights the screen: event title, start time, and two big buttons — **Snooze** and **Done**.
-- While shown it **rings and vibrates continuously** (alarm audio stream, so it respects alarm volume, not media).
-- Ringing is **bounded**: after the ring timeout (default **60 seconds**) with no action, the alert **auto-snoozes** — same semantics as pressing Snooze. The nag loop guarantees it returns; an unattended watch never rings forever.
+- A due reminder **rings and vibrates in a continuous loop** (alarm audio stream, so it respects alarm volume, not media volume) **until acted on** — regardless of how it is presented. The sound belongs to the alert, not to any particular screen.
+- When the trigger fires and the screen is off/locked, a **full-screen alert** additionally lights the screen and takes it over: event title, start time, and two big buttons — **Snooze** and **Done**.
+- The full-screen takeover is **bounded**: after the ring timeout (default **60 seconds**) with no action, it **auto-snoozes** — same semantics as pressing Snooze. The nag loop guarantees it returns; an unattended watch never rings forever.
 - Dismissing the full-screen alert any way other than **Done** (swipe back, ring timeout) is a **snooze**.
-- If the user is actively using the watch when the trigger fires, the system shows a heads-up notification instead (same Snooze/Done actions, no ring loop) — taking over the screen mid-interaction would be hostile.
+- If the user is actively using the watch (or ambient display keeps the screen technically on, e.g. charging) the system shows a heads-up notification instead of the takeover — but the ring loop still sounds, and the same Snooze/Done actions apply. `TODO NGH:` canonical expectation: the heads-up-only ring is also bounded at the ring timeout; current implementation: it rings until acted on (bounding requires persisting first-notified time per instance); impact: an ignored reminder on a watch in use rings indefinitely; closes: track `notifiedAt` in the state store and auto-snooze from the coordinator.
 - On Android 14+ the OS requires a **user grant for full-screen alerts** (sideloaded apps default to denied). When the grant is missing, the app's permission flow surfaces an "Allow full-screen alerts" step that deep-links to the system settings page; until granted, due reminders degrade to plain high-priority notifications.
 
 ## Settings

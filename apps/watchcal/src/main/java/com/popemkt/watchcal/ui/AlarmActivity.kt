@@ -33,12 +33,13 @@ import kotlinx.coroutines.launch
 
 /**
  * The full-screen takeover alert (specs/00-product.md § Alarm-style alert).
- * Rings + vibrates while visible; every exit path except Done is a snooze:
- * the Snooze button, back/swipe dismiss, and the bounded ring timeout.
+ * Presentation only — the ring loop is owned by the insistent notification.
+ * Every exit path except Done is a snooze: the Snooze button, back/swipe
+ * dismiss, and the bounded ring timeout. Snoozing cancels the notification,
+ * which stops the ring.
  */
 class AlarmActivity : ComponentActivity() {
 
-    private lateinit var ringer: AlarmRinger
     private var acted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,7 +50,6 @@ class AlarmActivity : ComponentActivity() {
             return
         }
         showOverLockscreen()
-        ringer = AlarmRinger(this)
         autoSnoozeAfterRingTimeout(instanceKey)
         setContent {
             AlarmScreen(
@@ -61,13 +61,7 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        ringer.start()
-    }
-
     override fun onStop() {
-        ringer.stop()
         // Back/swipe dismiss without choosing = snooze; never a silent drop.
         if (isFinishing && !acted) act(intent.getStringExtra(EXTRA_INSTANCE_KEY)) { snooze(it) }
         super.onStop()
@@ -89,7 +83,6 @@ class AlarmActivity : ComponentActivity() {
     private fun act(instanceKey: String?, action: suspend ReminderCoordinator.(String) -> Unit) {
         if (acted || instanceKey == null) return
         acted = true
-        ringer.stop()
         val coordinator = (applicationContext as ReminderGraphOwner).reminderCoordinator
         // Detached scope: the state write must survive this activity finishing.
         CoroutineScope(Dispatchers.Default).launch { coordinator.action(instanceKey) }

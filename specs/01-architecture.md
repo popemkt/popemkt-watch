@@ -25,7 +25,7 @@ apps/watchcal/src/main/java/com/popemkt/watchcal/
   calendar/    CalendarSource (interface) + WearCalendarSource (mirror reader)
   reminders/   ReminderStateStore, ReminderSettingsStore, ReminderCoordinator,
                AlarmScheduler, ReminderNotifier, receivers, SyncWorker
-  ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity, AlarmRinger
+  ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity
   App.kt       composition root — builds the object graph, owns channel + periodic worker
 ```
 
@@ -79,15 +79,15 @@ The setter clamps to [10 s, 60 min] (fail-fast: an out-of-range write is a bug u
 
 ## Notifications & the full-screen alarm
 
-- One channel `reminders`, importance HIGH (required for full-screen intent launch).
+- One channel `reminders_alarm`, importance HIGH (required for full-screen intent launch), **channel sound = the bundled tone** (`android.resource://…/raw/watchcal_alarm`) with `USAGE_ALARM` audio attributes and a vibration pattern. The legacy soundless `reminders` channel is deleted on startup (channels are immutable — sound changes require a new channel id).
+- Every due notification carries `FLAG_INSISTENT`: the system loops the channel sound + vibration until the notification is cancelled (action taken / swipe-snoozed). This is what makes the ring independent of whether the full-screen takeover launches — ambient/AOD screens (charging) downgrade the FSI to heads-up, but the loop still sounds.
 - Notification id = instance key hash; actions **Snooze** / **Done** are `PendingIntent`s into `ReminderActionReceiver`; `deleteIntent` (swipe-away) routes to **Snooze** — the spec's "swipe is a snooze".
 - `setOnlyAlertOnce(true)`: background refreshes that re-post a still-due notification do not re-buzz; a snooze cancels the notification, so its return buzzes again. This implements the re-buzz rule in `00-product.md` mechanically.
 - Category `CATEGORY_ALARM` + `setFullScreenIntent(...)` → `AlarmActivity`. Screen off/locked: the system launches the activity directly (lights screen via `setShowWhenLocked`/`setTurnScreenOn`). Screen in use: heads-up notification only — the spec's "no takeover mid-interaction" falls out of platform behavior.
 - **Fence note:** `ReminderNotifier` (reminders layer) must not import `ui.AlarmActivity`. The full-screen `PendingIntent` is built by a factory lambda injected from `App` — the boundary stays interface-shaped, the root does the wiring.
-- `AlarmRinger` (ui): plays the bundled tone `res/raw/watchcal_alarm.wav` via `MediaPlayer` — `USAGE_ALARM` audio attributes, looping, player volume 1.0 (loudness within the alarm stream is maxed; the *stream* volume stays the user's setting). Plus a repeating vibration waveform. Started in `AlarmActivity.onStart`, stopped in `onStop`.
-- `AlarmActivity` lifecycle = the snooze guarantee: any exit other than Done (back/swipe dismiss, ring timeout via `RING_TIMEOUT_MILLIS`) snoozes the instance. Auto-snooze keeps ringing bounded — see battery note below.
+- `AlarmActivity` is presentation only — the sound/vibration loop is owned by the notification (`FLAG_INSISTENT`), so takeover and ring cannot drift apart. Activity lifecycle = the snooze guarantee: any exit other than Done (back/swipe dismiss, ring timeout via `RING_TIMEOUT_MILLIS`) snoozes the instance, which cancels the notification and therefore stops the ring.
 
-Battery note (per the battery rule): the ring loop holds the screen on (`FLAG_KEEP_SCREEN_ON`) and plays audio/vibration for at most `RING_TIMEOUT_MILLIS` (60 s) per alert. It adds no wakeup source — it rides the existing exact-alarm chain; the auto-snooze re-enters the normal snooze cycle.
+Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEEP_SCREEN_ON`) for at most `RING_TIMEOUT_MILLIS` (60 s) per alert, then auto-snoozes. The insistent ring stops whenever the notification is cancelled. No wakeup source is added — everything rides the existing exact-alarm chain. (See the `TODO NGH:` in 00-product about bounding the heads-up-only ring.)
 
 ## Permissions
 
@@ -131,6 +131,6 @@ Builds run with `JAVA_HOME=.tooling/jdk-21/Contents/Home` when the system JDK is
 - **Swipe-away routes to snooze.** The notification `deleteIntent` is the snooze intent. Rejected: treating swipe as dismiss (breaks the core "cannot accidentally lose a task" ergonomic) and `setOngoing` (user hostile, fights the system UI).
 - **Manual object graph over Hilt.** One module, ~6 collaborators; a DI framework would be accidental complexity. The boundary radius is still honored: consumers depend on `CalendarSource` (interface), wiring happens only in `App`. Revisit when a second module appears.
 - **Preferences DataStore over Room.** The state is a small flat map with O(window) size; a relational store buys nothing. Revisit if per-instance history or queries appear.
-- **Full-screen intent over an ongoing/insistent notification.** The RTOS-style takeover needs the screen lit and a ring loop; `FLAG_INSISTENT` notifications can't bound the ring or own the screen. Rejected: a foreground service ringer (idle service, battery rule) and `setOngoing` (fights system UI). The 60 s ring timeout + auto-snooze keeps the alert loop battery-bounded while preserving "you cannot lose a task".
+- **Insistent notification for the ring, full-screen intent for the takeover.** First implementation put the ring inside `AlarmActivity` (via FSI); on-device testing showed the system frequently downgrades FSI to heads-up (ambient/AOD counts as screen-on, e.g. while charging) — leaving the alert silent. The ring now lives on the notification (`FLAG_INSISTENT` + channel sound on the alarm stream), which sounds in every presentation; FSI remains for the screen takeover when allowed. Rejected: a foreground service ringer (battery rule; more moving parts) and forcing the takeover from the background (the OS forbids it — FSI *is* the sanctioned path).
 - **Bundled alarm tone over device default ringtone.** The test device's default alarm tone is quiet and device tones vary unpredictably across watches (specs/learnings.md). WatchCal ships a generated dual-tone beep pattern (`res/raw/watchcal_alarm.wav`, produced by `scripts/generate-alarm-tone.py`, committed as an asset) and plays it at player volume 1.0 on the alarm stream. Rejected: forcing alarm *stream* volume up (user hostile, fights system settings) and `RingtoneManager` defaults (the original implementation — unpredictable loudness).
 - **Snooze interval read at snooze time, stored in DataStore.** The coordinator asks `ReminderSettingsStore` when a snooze happens; nothing caches the value. Rejected: pushing the interval into `ReminderPlanner` (the planner deals in absolute trigger times; intervals are an input to state transitions, not planning) and per-event intervals (spec non-goal).
