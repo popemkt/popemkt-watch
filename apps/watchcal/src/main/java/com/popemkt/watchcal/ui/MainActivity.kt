@@ -82,11 +82,11 @@ private fun WatchCalRoot(app: App) {
         onToggleDone = { entry ->
             scope.launch {
                 val key = entry.instance.instanceKey
-                // Undo = one snooze interval back in the nag loop (00-product § Agenda).
-                if (entry.state == ReminderState.Done) {
-                    app.reminderCoordinator.snooze(key)
-                } else {
-                    app.reminderCoordinator.markDone(key)
+                // Cycle: upcoming → done → snoozed → upcoming (00-product § Agenda).
+                when (entry.state) {
+                    ReminderState.Done -> app.reminderCoordinator.snooze(key)
+                    is ReminderState.Snoozed -> app.reminderCoordinator.reset(key)
+                    else -> app.reminderCoordinator.markDone(key)
                 }
                 refreshTick++
             }

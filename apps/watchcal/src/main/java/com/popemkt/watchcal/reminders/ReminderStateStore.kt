@@ -30,6 +30,11 @@ class ReminderStateStore(private val context: Context) {
     suspend fun markSnoozed(instanceKey: String, untilMillis: Long) =
         put(instanceKey, "$VALUE_SNOOZED:$untilMillis")
 
+    /** Back to Upcoming — absence is the upcoming state. */
+    suspend fun clear(instanceKey: String) {
+        context.reminderPrefs.edit { it.remove(stringPreferencesKey(PREFIX + instanceKey)) }
+    }
+
     /** Drops state for instances no longer in the visible window (moved, deleted, scrolled past). */
     suspend fun prune(liveInstanceKeys: Set<String>) {
         context.reminderPrefs.edit { prefs ->

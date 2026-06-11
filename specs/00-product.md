@@ -48,7 +48,7 @@ The app screen is a minimal agenda:
 
 - Lists event instances for the next **48 hours**, soonest first.
 - Each row shows title, start time, and reminder state (upcoming / snoozed-until / done).
-- Tapping a row **toggles**: a not-done row becomes **Done** (same semantics as the notification action); a done row is **undone** — its state becomes *snoozed for one interval*, so the reminder re-enters the nag loop and comes back. Done is therefore recoverable from the agenda; an accidental tap costs one snooze interval, never the task.
+- Tapping a row **cycles the reminder state**: upcoming/notified → **Done** (same semantics as the notification action) → **snoozed for one interval** (the undo — re-enters the nag loop and comes back) → **upcoming** (state cleared; fires at event start again, or immediately if the start already passed). Done is therefore recoverable from the agenda; an accidental tap costs taps, never the task. The snoozed step doubles as a deliberate "ring me in N" test affordance for any event.
 
 ## Sync
 

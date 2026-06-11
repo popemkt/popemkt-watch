@@ -39,6 +39,13 @@ class ReminderCoordinator(
         refresh()
     }
 
+    /** Back to Upcoming: fires at event start again, or immediately if start already passed. */
+    suspend fun reset(instanceKey: String) {
+        notifier.cancel(instanceKey)
+        stateStore.clear(instanceKey)
+        refresh()
+    }
+
     private companion object {
         /** Keep recently-started events in the window so un-acted reminders survive a refresh. */
         const val PAST_GRACE_MILLIS = 6L * 60 * 60 * 1000

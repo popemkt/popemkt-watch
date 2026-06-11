@@ -6,8 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.net.Uri
 import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -28,25 +26,19 @@ class ReminderNotifier(
 ) {
 
     fun ensureChannel() {
+        // Default sound on purpose: a custom alarm-stream sound got the whole alert
+        // suppressed on the Xiaomi Watch 5 (see TODO NGH: in specs/01 § Notifications).
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.channel_reminders),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            setSound(
-                Uri.parse("android.resource://${context.packageName}/${R.raw.watchcal_alarm}"),
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 600, 400)
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
-        // Channels are immutable; the soundless v1 channel is superseded.
-        manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+        LEGACY_CHANNEL_IDS.forEach(manager::deleteNotificationChannel)
     }
 
     fun show(instance: EventInstance) {
@@ -99,7 +91,7 @@ class ReminderNotifier(
     }
 
     companion object {
-        const val CHANNEL_ID = "reminders_alarm"
-        private const val LEGACY_CHANNEL_ID = "reminders"
+        const val CHANNEL_ID = "reminders_v3"
+        private val LEGACY_CHANNEL_IDS = listOf("reminders", "reminders_alarm")
     }
 }
