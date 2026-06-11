@@ -98,7 +98,7 @@ Battery note (per the battery rule): the ring loop holds the screen on (`FLAG_KE
 | `USE_EXACT_ALARM` | API 33+: calendar apps qualify, no user grant | |
 | `SCHEDULE_EXACT_ALARM` | API 30–32 fallback (`maxSdkVersion=32`) | scheduler falls back to inexact if revoked |
 | `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` | reboot re-arm; receiver work | |
-| `USE_FULL_SCREEN_INTENT` | launch `AlarmActivity` from a due notification | normal permission; granted at install |
+| `USE_FULL_SCREEN_INTENT` | launch `AlarmActivity` from a due notification | manifest permission granted at install, **but** API 34+ gates it behind an appop that defaults to deny for non-store apps. `MainActivity` checks `NotificationManager.canUseFullScreenIntent()` and offers a deep link to `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`; denied = graceful degrade to heads-up |
 | `VIBRATE` | alarm vibration loop | |
 
 ## Toolchain

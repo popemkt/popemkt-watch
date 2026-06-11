@@ -19,15 +19,26 @@ import java.util.Date
 @Composable
 fun AgendaScreen(
     entries: List<AgendaEntry>,
-    onMarkDone: (AgendaEntry) -> Unit,
+    onToggleDone: (AgendaEntry) -> Unit,
     onOpenSettings: () -> Unit,
+    onGrantFullScreen: (() -> Unit)? = null,
 ) {
     ScalingLazyColumn(modifier = Modifier.fillMaxSize()) {
+        if (onGrantFullScreen != null) {
+            item {
+                Chip(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ChipDefaults.primaryChipColors(),
+                    label = { Text("Allow full-screen alerts", maxLines = 2) },
+                    onClick = onGrantFullScreen,
+                )
+            }
+        }
         if (entries.isEmpty()) {
             item { Text("Nothing in the next 48h", style = MaterialTheme.typography.body2) }
         }
         items(entries, key = { it.instance.instanceKey }) { entry ->
-            AgendaRow(entry, onMarkDone)
+            AgendaRow(entry, onToggleDone)
         }
         item {
             Chip(
@@ -41,7 +52,7 @@ fun AgendaScreen(
 }
 
 @Composable
-private fun AgendaRow(entry: AgendaEntry, onMarkDone: (AgendaEntry) -> Unit) {
+private fun AgendaRow(entry: AgendaEntry, onToggleDone: (AgendaEntry) -> Unit) {
     val context = LocalContext.current
     val time = DateFormat.getTimeFormat(context).format(Date(entry.instance.beginMillis))
     Chip(
@@ -49,12 +60,12 @@ private fun AgendaRow(entry: AgendaEntry, onMarkDone: (AgendaEntry) -> Unit) {
         colors = ChipDefaults.secondaryChipColors(),
         label = { Text(entry.instance.title, maxLines = 2) },
         secondaryLabel = { Text("$time · ${entry.stateLabel(context)}") },
-        onClick = { if (entry.state != ReminderState.Done) onMarkDone(entry) },
+        onClick = { onToggleDone(entry) },
     )
 }
 
 private fun AgendaEntry.stateLabel(context: android.content.Context): String = when (val s = state) {
-    ReminderState.Done -> "done"
+    ReminderState.Done -> "done · tap to undo"
     is ReminderState.Snoozed ->
         "snoozed until ${DateFormat.getTimeFormat(context).format(Date(s.untilMillis))}"
     else -> if (instance.allDay) "all day" else "upcoming"

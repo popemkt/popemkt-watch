@@ -1,9 +1,13 @@
 package com.popemkt.watchcal.ui
 
 import android.Manifest
+import android.app.NotificationManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.popemkt.watchcal.App
 import com.popemkt.watchcal.domain.ReminderDefaults
+import com.popemkt.watchcal.domain.ReminderState
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -74,14 +79,35 @@ private fun WatchCalRoot(app: App) {
 
     AgendaScreen(
         entries = entries,
-        onMarkDone = { entry ->
+        onToggleDone = { entry ->
             scope.launch {
-                app.reminderCoordinator.markDone(entry.instance.instanceKey)
+                val key = entry.instance.instanceKey
+                // Undo = one snooze interval back in the nag loop (00-product § Agenda).
+                if (entry.state == ReminderState.Done) {
+                    app.reminderCoordinator.snooze(key)
+                } else {
+                    app.reminderCoordinator.markDone(key)
+                }
                 refreshTick++
             }
         },
         onOpenSettings = { showSettings = true },
+        onGrantFullScreen = fullScreenGrantAction(app),
     )
+}
+
+/** Non-null only while the API 34+ full-screen-intent grant is missing (01-architecture § Permissions). */
+private fun fullScreenGrantAction(app: App): (() -> Unit)? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+    val manager = app.getSystemService(NotificationManager::class.java)
+    if (manager.canUseFullScreenIntent()) return null
+    return {
+        app.startActivity(
+            Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                .setData(Uri.fromParts("package", app.packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
 }
 
 private fun App.hasCalendarPermission(): Boolean =

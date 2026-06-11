@@ -20,6 +20,7 @@ A due reminder takes over like an RTOS-watch alarm, not a passive notification:
 - Ringing is **bounded**: after the ring timeout (default **60 seconds**) with no action, the alert **auto-snoozes** — same semantics as pressing Snooze. The nag loop guarantees it returns; an unattended watch never rings forever.
 - Dismissing the full-screen alert any way other than **Done** (swipe back, ring timeout) is a **snooze**.
 - If the user is actively using the watch when the trigger fires, the system shows a heads-up notification instead (same Snooze/Done actions, no ring loop) — taking over the screen mid-interaction would be hostile.
+- On Android 14+ the OS requires a **user grant for full-screen alerts** (sideloaded apps default to denied). When the grant is missing, the app's permission flow surfaces an "Allow full-screen alerts" step that deep-links to the system settings page; until granted, due reminders degrade to plain high-priority notifications.
 
 ## Settings
 
@@ -47,7 +48,7 @@ The app screen is a minimal agenda:
 
 - Lists event instances for the next **48 hours**, soonest first.
 - Each row shows title, start time, and reminder state (upcoming / snoozed-until / done).
-- Tapping a row marks it **Done** (same semantics as the notification action). `TODO NGH:` canonical expectation is tap-to-toggle with undo; current implementation is one-way Done; impact: accidental taps require waiting for re-sync of nothing — the state is permanent for that instance; closes: add an undo affordance.
+- Tapping a row **toggles**: a not-done row becomes **Done** (same semantics as the notification action); a done row is **undone** — its state becomes *snoozed for one interval*, so the reminder re-enters the nag loop and comes back. Done is therefore recoverable from the agenda; an accidental tap costs one snooze interval, never the task.
 
 ## Sync
 
