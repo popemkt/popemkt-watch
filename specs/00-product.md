@@ -25,6 +25,7 @@ A due reminder takes over like an RTOS-watch alarm, not a passive notification:
 ## Settings
 
 - **Snooze interval** is configurable in-app as **minutes + seconds** (default 10 min 0 s, clamped to 10 s – 60 min). One global value; applies to the next snooze, not retroactively to already-snoozed reminders.
+- **Test sound** button: plays the bundled alert tone once on the alarm stream — verifies speaker + volume without waiting for a real reminder.
 
 ## Reminder lifecycle
 

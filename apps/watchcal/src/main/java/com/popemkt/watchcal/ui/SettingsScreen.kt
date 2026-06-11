@@ -1,18 +1,25 @@
 package com.popemkt.watchcal.ui
 
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
+import androidx.wear.compose.material.Chip
+import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import com.popemkt.watchcal.R
 import com.popemkt.watchcal.domain.ReminderDefaults
 import java.util.concurrent.TimeUnit
 
@@ -50,7 +57,30 @@ fun SettingsScreen(snoozeIntervalMillis: Long, onIntervalChange: (Long) -> Unit)
             )
         }
         item { Text("Comes back every $minutes m $seconds s", style = MaterialTheme.typography.caption2) }
+        item { SoundCheckChip() }
     }
+}
+
+/** Plays the bundled tone once on the alarm stream — speaker/volume check without a real reminder. */
+@Composable
+private fun SoundCheckChip() {
+    val context = LocalContext.current
+    Chip(
+        modifier = Modifier.fillMaxWidth(),
+        colors = ChipDefaults.secondaryChipColors(),
+        label = { Text("Test sound") },
+        onClick = {
+            val attributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            MediaPlayer.create(context, R.raw.watchcal_alarm, attributes, 0)?.apply {
+                setVolume(1f, 1f)
+                setOnCompletionListener { it.release() }
+                start()
+            }
+        },
+    )
 }
 
 @Composable
