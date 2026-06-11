@@ -2,6 +2,7 @@ package com.popemkt.watchcal.ui
 
 import android.content.Context
 import android.os.Build
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -17,8 +18,15 @@ class AlarmVibrator(private val context: Context) {
     private var vibrator: Vibrator? = null
 
     fun start() {
+        val effect = VibrationEffect.createWaveform(PATTERN, 0)
         vibrator = defaultVibrator().apply {
-            vibrate(VibrationEffect.createWaveform(PATTERN, 0))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Alarm-class priority: without it the system can drop this loop
+                // in favor of the notification's own one-shot salvo.
+                vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
+            } else {
+                vibrate(effect)
+            }
         }
     }
 
