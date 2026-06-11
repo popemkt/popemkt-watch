@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Sound investigation closed: the Xiaomi Watch 5's Android audio framework exposes no speaker output to apps (all playback APIs fail with ENODEV; see `specs/learnings.md`). Alerts are vibration-first on this device. Settings "Test:" chip cycles five playback variants for diagnosing future devices.
+
 - Alarm-style full-screen alert: a due reminder lights the screen, takes it over (title + Snooze/Done), and rings + vibrates on the alarm stream until acted on; ring bounded at 60 s, then auto-snoozes. Any exit other than Done (swipe back, timeout) is a snooze. Heads-up fallback when the watch is in use.
 - Configurable snooze interval: minutes + seconds steppers in a new in-app Settings screen (default 10 min, clamped 10 s – 60 min, stored in `ReminderSettingsStore` DataStore, read at snooze time).
 - Agenda tap now toggles: done rows can be undone — undo re-enters the nag loop as snoozed for one interval.

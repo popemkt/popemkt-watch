@@ -1,7 +1,10 @@
 package com.popemkt.watchcal.ui
 
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.RingtoneManager
+import android.media.ToneGenerator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,40 +70,64 @@ fun SettingsScreen(snoozeIntervalMillis: Long, onIntervalChange: (Long) -> Unit)
 }
 
 /**
- * Plays the bundled tone, cycling AudioAttributes usage on each tap — bisects
- * which usages the OEM lets third-party audio reach the speaker with
- * (specs/learnings.md). The label names the usage about to be tested.
+ * Plays a test sound, cycling through playback paths/usages on each tap —
+ * bisects what the OEM lets third-party audio reach the speaker with
+ * (specs/learnings.md). The label names the variant about to be tested and
+ * reports whether the player was even created.
  */
 @Composable
 private fun SoundCheckChip() {
     val context = LocalContext.current
-    var usageIndex by remember { mutableIntStateOf(0) }
-    val (usageName, usage) = TEST_USAGES[usageIndex % TEST_USAGES.size]
+    var index by remember { mutableIntStateOf(0) }
+    var lastResult by remember { mutableStateOf("") }
+    val variant = TEST_VARIANTS[index % TEST_VARIANTS.size]
     Chip(
         modifier = Modifier.fillMaxWidth(),
         colors = ChipDefaults.secondaryChipColors(),
-        label = { Text("Test: $usageName") },
+        label = { Text("Test: ${variant.first}$lastResult") },
         onClick = {
-            val attributes = AudioAttributes.Builder()
-                .setUsage(usage)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-            MediaPlayer.create(context, R.raw.watchcal_alarm, attributes, 0)?.apply {
-                setVolume(1f, 1f)
-                setOnCompletionListener { it.release() }
-                start()
-            }
-            usageIndex++
+            val ok = variant.second(context)
+            lastResult = if (ok) " ✓" else " ✗"
+            index++
         },
     )
 }
 
-private val TEST_USAGES = listOf(
-    "ALARM" to AudioAttributes.USAGE_ALARM,
-    "NOTIFICATION" to AudioAttributes.USAGE_NOTIFICATION,
-    "RINGTONE" to AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
-    "MEDIA" to AudioAttributes.USAGE_MEDIA,
-    "SONIFICATION" to AudioAttributes.USAGE_ASSISTANCE_SONIFICATION,
+private fun mediaPlayerVariant(usage: Int): (android.content.Context) -> Boolean = { context ->
+    val attributes = AudioAttributes.Builder()
+        .setUsage(usage)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+    val player = MediaPlayer.create(context, R.raw.watchcal_alarm, attributes, 0)
+    player?.apply {
+        setVolume(1f, 1f)
+        setOnCompletionListener { it.release() }
+        start()
+    } != null
+}
+
+private val TEST_VARIANTS: List<Pair<String, (android.content.Context) -> Boolean>> = listOf(
+    "MP-ALARM" to mediaPlayerVariant(AudioAttributes.USAGE_ALARM),
+    "MP-MEDIA" to mediaPlayerVariant(AudioAttributes.USAGE_MEDIA),
+    "TONEGEN" to { _ ->
+        runCatching {
+            val tone = ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME)
+            tone.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 1500)
+        }.isSuccess
+    },
+    "RINGTONE-API" to { context ->
+        runCatching {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            RingtoneManager.getRingtone(context, uri)?.play() != null
+        }.getOrDefault(false)
+    },
+    "NOTIF-SOUND" to { context ->
+        runCatching {
+            val uri = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_NOTIFICATION)
+            RingtoneManager.getRingtone(context, uri)?.play() != null
+        }.getOrDefault(false)
+    },
 )
 
 @Composable
