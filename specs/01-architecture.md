@@ -23,9 +23,9 @@ New apps are added by `include(":apps:<name>")` in `settings.gradle.kts`. Cross-
 apps/watchcal/src/main/java/com/popemkt/watchcal/
   domain/      EventInstance, ReminderState, ReminderPlanner, ReminderDefaults   (leaf — pure Kotlin, no Android)
   calendar/    CalendarSource (interface) + WearCalendarSource (mirror reader)
-  reminders/   ReminderStateStore, ReminderCoordinator, AlarmScheduler,
-               ReminderNotifier, receivers, SyncWorker
-  ui/          MainActivity, AgendaScreen
+  reminders/   ReminderStateStore, ReminderSettingsStore, ReminderCoordinator,
+               AlarmScheduler, ReminderNotifier, receivers, SyncWorker
+  ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity, AlarmRinger
   App.kt       composition root — builds the object graph, owns channel + periodic worker
 ```
 
@@ -69,11 +69,25 @@ No foreground service, no ContentObserver service, no own network. The OS calend
 
 Absence = UPCOMING. Pruning removes keys not present in the current 48h window (moved/deleted/past events) — the store stays O(window), never grows.
 
-## Notifications
+`ReminderSettingsStore` = a second Preferences DataStore (`reminder_settings`), one entry:
 
-- One channel `reminders`, importance HIGH (vibrates on watch).
+```text
+"snooze_interval_millis"  →  Long   (absent = ReminderDefaults.SNOOZE_INTERVAL_MILLIS)
+```
+
+The setter clamps to [10 s, 60 min] (fail-fast: an out-of-range write is a bug upstream, the clamp keeps persisted state always valid). `ReminderCoordinator.snooze` reads it at snooze time — a changed interval applies to the next snooze, never retroactively.
+
+## Notifications & the full-screen alarm
+
+- One channel `reminders`, importance HIGH (required for full-screen intent launch).
 - Notification id = instance key hash; actions **Snooze** / **Done** are `PendingIntent`s into `ReminderActionReceiver`; `deleteIntent` (swipe-away) routes to **Snooze** — the spec's "swipe is a snooze".
 - `setOnlyAlertOnce(true)`: background refreshes that re-post a still-due notification do not re-buzz; a snooze cancels the notification, so its return buzzes again. This implements the re-buzz rule in `00-product.md` mechanically.
+- Category `CATEGORY_ALARM` + `setFullScreenIntent(...)` → `AlarmActivity`. Screen off/locked: the system launches the activity directly (lights screen via `setShowWhenLocked`/`setTurnScreenOn`). Screen in use: heads-up notification only — the spec's "no takeover mid-interaction" falls out of platform behavior.
+- **Fence note:** `ReminderNotifier` (reminders layer) must not import `ui.AlarmActivity`. The full-screen `PendingIntent` is built by a factory lambda injected from `App` — the boundary stays interface-shaped, the root does the wiring.
+- `AlarmRinger` (ui): default alarm ringtone (fallback: notification tone), `USAGE_ALARM` audio attributes, `isLooping`, plus a repeating vibration waveform. Started in `AlarmActivity.onStart`, stopped in `onStop`.
+- `AlarmActivity` lifecycle = the snooze guarantee: any exit other than Done (back/swipe dismiss, ring timeout via `RING_TIMEOUT_MILLIS`) snoozes the instance. Auto-snooze keeps ringing bounded — see battery note below.
+
+Battery note (per the battery rule): the ring loop holds the screen on (`FLAG_KEEP_SCREEN_ON`) and plays audio/vibration for at most `RING_TIMEOUT_MILLIS` (60 s) per alert. It adds no wakeup source — it rides the existing exact-alarm chain; the auto-snooze re-enters the normal snooze cycle.
 
 ## Permissions
 
@@ -84,6 +98,8 @@ Absence = UPCOMING. Pruning removes keys not present in the current 48h window (
 | `USE_EXACT_ALARM` | API 33+: calendar apps qualify, no user grant | |
 | `SCHEDULE_EXACT_ALARM` | API 30–32 fallback (`maxSdkVersion=32`) | scheduler falls back to inexact if revoked |
 | `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` | reboot re-arm; receiver work | |
+| `USE_FULL_SCREEN_INTENT` | launch `AlarmActivity` from a due notification | normal permission; granted at install |
+| `VIBRATE` | alarm vibration loop | |
 
 ## Toolchain
 
@@ -115,3 +131,5 @@ Builds run with `JAVA_HOME=.tooling/jdk-21/Contents/Home` when the system JDK is
 - **Swipe-away routes to snooze.** The notification `deleteIntent` is the snooze intent. Rejected: treating swipe as dismiss (breaks the core "cannot accidentally lose a task" ergonomic) and `setOngoing` (user hostile, fights the system UI).
 - **Manual object graph over Hilt.** One module, ~6 collaborators; a DI framework would be accidental complexity. The boundary radius is still honored: consumers depend on `CalendarSource` (interface), wiring happens only in `App`. Revisit when a second module appears.
 - **Preferences DataStore over Room.** The state is a small flat map with O(window) size; a relational store buys nothing. Revisit if per-instance history or queries appear.
+- **Full-screen intent over an ongoing/insistent notification.** The RTOS-style takeover needs the screen lit and a ring loop; `FLAG_INSISTENT` notifications can't bound the ring or own the screen. Rejected: a foreground service ringer (idle service, battery rule) and `setOngoing` (fights system UI). The 60 s ring timeout + auto-snooze keeps the alert loop battery-bounded while preserving "you cannot lose a task".
+- **Snooze interval read at snooze time, stored in DataStore.** The coordinator asks `ReminderSettingsStore` when a snooze happens; nothing caches the value. Rejected: pushing the interval into `ReminderPlanner` (the planner deals in absolute trigger times; intervals are an input to state transitions, not planning) and per-event intervals (spec non-goal).

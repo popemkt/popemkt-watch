@@ -7,9 +7,23 @@ WatchCal is a **standalone Wear OS app** that replaces the stock calendar notifi
 A calendar event reminder on the watch should behave like a personal nag, not a fire-and-forget toast:
 
 - When an event starts, the watch notifies with two actions: **Snooze** and **Done**.
-- **Snooze** silences it for a fixed interval (default **10 minutes**), then it comes back. Indefinitely.
+- **Snooze** silences it for the configured interval (default **10 minutes**), then it comes back. Indefinitely.
 - **Done** dismisses it permanently — meaning *"I started / finished the task"*.
 - **Swiping the notification away is a snooze, not a dismiss.** The only escape is Done. This is the core ergonomic: you cannot accidentally lose a task.
+
+## Alarm-style alert
+
+A due reminder takes over like an RTOS-watch alarm, not a passive notification:
+
+- When the trigger fires and the screen is off/locked, a **full-screen alert** lights the screen: event title, start time, and two big buttons — **Snooze** and **Done**.
+- While shown it **rings and vibrates continuously** (alarm audio stream, so it respects alarm volume, not media).
+- Ringing is **bounded**: after the ring timeout (default **60 seconds**) with no action, the alert **auto-snoozes** — same semantics as pressing Snooze. The nag loop guarantees it returns; an unattended watch never rings forever.
+- Dismissing the full-screen alert any way other than **Done** (swipe back, ring timeout) is a **snooze**.
+- If the user is actively using the watch when the trigger fires, the system shows a heads-up notification instead (same Snooze/Done actions, no ring loop) — taking over the screen mid-interaction would be hostile.
+
+## Settings
+
+- **Snooze interval** is configurable in-app as **minutes + seconds** (default 10 min 0 s, clamped to 10 s – 60 min). One global value; applies to the next snooze, not retroactively to already-snoozed reminders.
 
 ## Reminder lifecycle
 
@@ -48,7 +62,7 @@ The user never configures accounts in WatchCal. Wear OS already mirrors the phon
 Explicit exclusions — out-of-scope is first-class:
 
 - No event creation/editing, no phone companion app.
-- No per-event snooze intervals or custom leads (fixed 10 min snooze).
+- No per-event snooze intervals or custom leads (one global snooze interval, configurable in Settings).
 - No tiles or complications yet (planned next ergonomics, after the loop proves itself).
 - No own network sync, no Google Calendar API, no OAuth.
 - No month/week browsing — 48h agenda only.

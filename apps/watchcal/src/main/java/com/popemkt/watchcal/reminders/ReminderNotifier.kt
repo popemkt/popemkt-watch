@@ -15,8 +15,14 @@ import java.util.Date
 /**
  * Builds the snooze-until-done notification. Swipe-away (deleteIntent) routes
  * to Snooze — only the explicit Done action dismisses (specs/00-product.md).
+ *
+ * [fullScreenIntent] is injected by the composition root so this layer never
+ * imports the ui alarm activity (specs/02 fence: reminders ↛ ui).
  */
-class ReminderNotifier(private val context: Context) {
+class ReminderNotifier(
+    private val context: Context,
+    private val fullScreenIntent: (EventInstance) -> PendingIntent,
+) {
 
     fun ensureChannel() {
         val channel = NotificationChannel(
@@ -36,8 +42,10 @@ class ReminderNotifier(private val context: Context) {
             .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
             .setContentTitle(instance.title)
             .setContentText(timeLabel(instance))
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // Screen off → system launches the full-screen alarm; screen in use → heads-up only.
+            .setFullScreenIntent(fullScreenIntent(instance), true)
             // Background refreshes re-post still-due reminders without re-buzzing;
             // a snooze cancels first, so its return buzzes again (specs/01-architecture.md).
             .setOnlyAlertOnce(true)

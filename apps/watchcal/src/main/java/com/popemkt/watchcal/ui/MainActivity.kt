@@ -5,11 +5,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +50,7 @@ private fun WatchCalRoot(app: App) {
     }
 
     var refreshTick by remember { mutableIntStateOf(0) }
+    var showSettings by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val entries by produceState(initialValue = emptyList<AgendaEntry>(), refreshTick) {
         app.reminderCoordinator.refresh()
@@ -55,6 +58,18 @@ private fun WatchCalRoot(app: App) {
         val instances = app.calendarSource.instances(now, now + ReminderDefaults.AGENDA_WINDOW_MILLIS)
         val states = app.stateStore.states()
         value = instances.map { AgendaEntry(it, states[it.instanceKey]) }
+    }
+
+    if (showSettings) {
+        // Swipe-back leaves settings, not the app.
+        BackHandler { showSettings = false }
+        val interval by app.settingsStore.snoozeIntervalFlow
+            .collectAsState(initial = ReminderDefaults.SNOOZE_INTERVAL_MILLIS)
+        SettingsScreen(
+            snoozeIntervalMillis = interval,
+            onIntervalChange = { scope.launch { app.settingsStore.setSnoozeIntervalMillis(it) } },
+        )
+        return
     }
 
     AgendaScreen(
@@ -65,6 +80,7 @@ private fun WatchCalRoot(app: App) {
                 refreshTick++
             }
         },
+        onOpenSettings = { showSettings = true },
     )
 }
 

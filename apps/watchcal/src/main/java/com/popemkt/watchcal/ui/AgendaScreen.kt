@@ -17,13 +17,25 @@ import com.popemkt.watchcal.domain.ReminderState
 import java.util.Date
 
 @Composable
-fun AgendaScreen(entries: List<AgendaEntry>, onMarkDone: (AgendaEntry) -> Unit) {
+fun AgendaScreen(
+    entries: List<AgendaEntry>,
+    onMarkDone: (AgendaEntry) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     ScalingLazyColumn(modifier = Modifier.fillMaxSize()) {
         if (entries.isEmpty()) {
             item { Text("Nothing in the next 48h", style = MaterialTheme.typography.body2) }
         }
         items(entries, key = { it.instance.instanceKey }) { entry ->
             AgendaRow(entry, onMarkDone)
+        }
+        item {
+            Chip(
+                modifier = Modifier.fillMaxWidth(),
+                colors = ChipDefaults.secondaryChipColors(),
+                label = { Text("Settings") },
+                onClick = onOpenSettings,
+            )
         }
     }
 }

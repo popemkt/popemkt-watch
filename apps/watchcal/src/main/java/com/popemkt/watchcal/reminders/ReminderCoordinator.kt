@@ -12,6 +12,7 @@ import com.popemkt.watchcal.domain.ReminderPlanner
 class ReminderCoordinator(
     private val calendarSource: CalendarSource,
     private val stateStore: ReminderStateStore,
+    private val settingsStore: ReminderSettingsStore,
     private val notifier: ReminderNotifier,
     private val alarmScheduler: AlarmScheduler,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -28,7 +29,7 @@ class ReminderCoordinator(
 
     suspend fun snooze(instanceKey: String) {
         notifier.cancel(instanceKey)
-        stateStore.markSnoozed(instanceKey, clock() + ReminderDefaults.SNOOZE_INTERVAL_MILLIS)
+        stateStore.markSnoozed(instanceKey, clock() + settingsStore.snoozeIntervalMillis())
         refresh()
     }
 
