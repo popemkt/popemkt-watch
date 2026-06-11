@@ -25,7 +25,7 @@ apps/watchcal/src/main/java/com/popemkt/watchcal/
   calendar/    CalendarSource (interface) + WearCalendarSource (mirror reader)
   reminders/   ReminderStateStore, ReminderSettingsStore, ReminderCoordinator,
                AlarmScheduler, ReminderNotifier, receivers, SyncWorker
-  ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity
+  ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity, AlarmVibrator
   App.kt       composition root — builds the object graph, owns channel + periodic worker
 ```
 
@@ -85,7 +85,7 @@ The setter clamps to [10 s, 60 min] (fail-fast: an out-of-range write is a bug u
 - `setOnlyAlertOnce(true)`: background refreshes that re-post a still-due notification do not re-buzz; a snooze cancels the notification, so its return buzzes again. This implements the re-buzz rule in `00-product.md` mechanically.
 - Category `CATEGORY_ALARM` + `setFullScreenIntent(...)` → `AlarmActivity`. Screen off/locked: the system launches the activity directly (lights screen via `setShowWhenLocked`/`setTurnScreenOn`). Screen in use: heads-up notification only — the spec's "no takeover mid-interaction" falls out of platform behavior.
 - **Fence note:** `ReminderNotifier` (reminders layer) must not import `ui.AlarmActivity`. The full-screen `PendingIntent` is built by a factory lambda injected from `App` — the boundary stays interface-shaped, the root does the wiring.
-- `AlarmActivity` is presentation only — the sound/vibration loop is owned by the notification (`FLAG_INSISTENT`), so takeover and ring cannot drift apart. Activity lifecycle = the snooze guarantee: any exit other than Done (back/swipe dismiss, ring timeout via `RING_TIMEOUT_MILLIS`) snoozes the instance, which cancels the notification and therefore stops the ring.
+- `AlarmActivity` owns the takeover's **continuous vibration loop** (`AlarmVibrator`: direct `Vibrator` with a repeating waveform — bypasses notification alert policy, which only plays the channel salvo once; `FLAG_INSISTENT` loops nothing on the test device). Started in `onStart`, stopped in `onStop`/on action. Activity lifecycle = the snooze guarantee: any exit other than Done (back/swipe dismiss, ring timeout via `RING_TIMEOUT_MILLIS`) snoozes the instance and cancels the notification.
 
 Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEEP_SCREEN_ON`) for at most `RING_TIMEOUT_MILLIS` (60 s) per alert, then auto-snoozes. The insistent ring stops whenever the notification is cancelled. No wakeup source is added — everything rides the existing exact-alarm chain. (See the `TODO NGH:` in 00-product about bounding the heads-up-only ring.)
 

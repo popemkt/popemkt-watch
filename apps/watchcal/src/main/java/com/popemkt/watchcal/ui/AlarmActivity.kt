@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
  */
 class AlarmActivity : ComponentActivity() {
 
+    private val vibrator by lazy { AlarmVibrator(this) }
     private var acted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,7 +62,13 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!acted) vibrator.start()
+    }
+
     override fun onStop() {
+        vibrator.stop()
         // Back/swipe dismiss without choosing = snooze; never a silent drop.
         if (isFinishing && !acted) act(intent.getStringExtra(EXTRA_INSTANCE_KEY)) { snooze(it) }
         super.onStop()
@@ -83,6 +90,7 @@ class AlarmActivity : ComponentActivity() {
     private fun act(instanceKey: String?, action: suspend ReminderCoordinator.(String) -> Unit) {
         if (acted || instanceKey == null) return
         acted = true
+        vibrator.stop()
         val coordinator = (applicationContext as ReminderGraphOwner).reminderCoordinator
         // Detached scope: the state write must survive this activity finishing.
         CoroutineScope(Dispatchers.Default).launch { coordinator.action(instanceKey) }

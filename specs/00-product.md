@@ -15,7 +15,7 @@ A calendar event reminder on the watch should behave like a personal nag, not a 
 
 A due reminder takes over like an RTOS-watch alarm, not a passive notification:
 
-- A due reminder **rings and vibrates** — regardless of how it is presented. The sound belongs to the alert, not to any particular screen. Where the device blocks the sound path (see `specs/learnings.md`), **vibration carries the alert**: a long multi-buzz salvo per fire, and the snooze-return cycle re-buzzes every interval until Done.
+- Alerts are **vibration-first**: a due reminder buzzes hard, always. The notification fires a multi-second salvo in every presentation; the full-screen takeover additionally **vibrates in a continuous loop while shown** — the RTOS-alarm feel — until acted on or the ring timeout auto-snoozes. Sound (where the device supports app audio at all — see `specs/learnings.md`) is a bonus layer, never the carrier.
 - When the trigger fires and the screen is off/locked, a **full-screen alert** additionally lights the screen and takes it over: event title, start time, and two big buttons — **Snooze** and **Done**.
 - The full-screen takeover is **bounded**: after the ring timeout (default **60 seconds**) with no action, it **auto-snoozes** — same semantics as pressing Snooze. The nag loop guarantees it returns; an unattended watch never rings forever.
 - Dismissing the full-screen alert any way other than **Done** (swipe back, ring timeout) is a **snooze**.
