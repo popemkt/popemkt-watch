@@ -2,47 +2,50 @@ package com.popemkt.watchcal.ui
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.Ringtone
-import android.media.RingtoneManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import com.popemkt.watchcal.R
 
 /**
- * The audible half of the full-screen alert: looping alarm-stream ringtone +
- * repeating vibration. Lifetime is owned by AlarmActivity (start/stop in
+ * The audible half of the full-screen alert: the bundled alarm tone (looping,
+ * alarm stream, player volume maxed — stream volume stays the user's setting)
+ * + repeating vibration. Lifetime is owned by AlarmActivity (start/stop in
  * onStart/onStop) so ringing can never outlive the visible alert.
  */
 class AlarmRinger(private val context: Context) {
 
-    private var ringtone: Ringtone? = null
+    private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
 
     fun start() {
-        ringtone = alarmTone()?.apply { play() }
+        player = alarmPlayer()?.apply { start() }
         vibrator = defaultVibrator().apply {
             vibrate(VibrationEffect.createWaveform(VIBRATION_PATTERN, 0))
         }
     }
 
     fun stop() {
-        ringtone?.stop()
-        ringtone = null
+        player?.run {
+            stop()
+            release()
+        }
+        player = null
         vibrator?.cancel()
         vibrator = null
     }
 
-    private fun alarmTone(): Ringtone? {
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            ?: return null
-        return RingtoneManager.getRingtone(context, uri)?.apply {
-            audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
+    private fun alarmPlayer(): MediaPlayer? {
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        // create() returns null if the resource cannot be opened — vibration still alerts.
+        return MediaPlayer.create(context, R.raw.watchcal_alarm, attributes, 0)?.apply {
             isLooping = true
+            setVolume(1f, 1f)
         }
     }
 

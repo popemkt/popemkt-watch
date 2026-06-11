@@ -10,6 +10,7 @@ WatchCal is developed **spec-as-source**. This folder is the spec of record. Tog
 | [01-architecture.md](./01-architecture.md) | **Technical spec** — package layout, data flow, alarm pipeline, persistence, permissions, toolchain, entrypoints, decision records |
 | [02-code-unit-cohesion.md](./02-code-unit-cohesion.md) | Code-unit sizing & boundary contract — L1/L2/L3 layers, thresholds, fence map, rubric |
 | [rules-index.md](./rules-index.md) | Single entry point to every rule; one canonical home per rule |
+| [learnings.md](./learnings.md) | Environment & device facts (test hardware quirks, build machine) — operational, not part of the reimplementation contract |
 
 ## What belongs here
 
