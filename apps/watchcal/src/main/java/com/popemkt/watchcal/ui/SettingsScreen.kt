@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,17 +65,23 @@ fun SettingsScreen(snoozeIntervalMillis: Long, onIntervalChange: (Long) -> Unit)
     }
 }
 
-/** Plays the bundled tone once on the alarm stream — speaker/volume check without a real reminder. */
+/**
+ * Plays the bundled tone, cycling AudioAttributes usage on each tap — bisects
+ * which usages the OEM lets third-party audio reach the speaker with
+ * (specs/learnings.md). The label names the usage about to be tested.
+ */
 @Composable
 private fun SoundCheckChip() {
     val context = LocalContext.current
+    var usageIndex by remember { mutableIntStateOf(0) }
+    val (usageName, usage) = TEST_USAGES[usageIndex % TEST_USAGES.size]
     Chip(
         modifier = Modifier.fillMaxWidth(),
         colors = ChipDefaults.secondaryChipColors(),
-        label = { Text("Test sound") },
+        label = { Text("Test: $usageName") },
         onClick = {
             val attributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setUsage(usage)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
             MediaPlayer.create(context, R.raw.watchcal_alarm, attributes, 0)?.apply {
@@ -79,9 +89,18 @@ private fun SoundCheckChip() {
                 setOnCompletionListener { it.release() }
                 start()
             }
+            usageIndex++
         },
     )
 }
+
+private val TEST_USAGES = listOf(
+    "ALARM" to AudioAttributes.USAGE_ALARM,
+    "NOTIFICATION" to AudioAttributes.USAGE_NOTIFICATION,
+    "RINGTONE" to AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+    "MEDIA" to AudioAttributes.USAGE_MEDIA,
+    "SONIFICATION" to AudioAttributes.USAGE_ASSISTANCE_SONIFICATION,
+)
 
 @Composable
 private fun StepperRow(label: String, onDecrement: () -> Unit, onIncrement: () -> Unit) {

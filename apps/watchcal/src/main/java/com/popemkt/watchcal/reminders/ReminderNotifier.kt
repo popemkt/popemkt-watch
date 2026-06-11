@@ -34,7 +34,9 @@ class ReminderNotifier(
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
             enableVibration(true)
-            vibrationPattern = longArrayOf(0, 600, 400)
+            // INSISTENT doesn't loop vibration on the test device — the salvo itself
+            // must carry the urgency (~4.6s; specs/01 § Notifications).
+            vibrationPattern = longArrayOf(0, 600, 200, 600, 200, 600, 500, 800, 300, 800)
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
@@ -91,7 +93,7 @@ class ReminderNotifier(
     }
 
     companion object {
-        const val CHANNEL_ID = "reminders_v3"
-        private val LEGACY_CHANNEL_IDS = listOf("reminders", "reminders_alarm")
+        const val CHANNEL_ID = "reminders_v4"
+        private val LEGACY_CHANNEL_IDS = listOf("reminders", "reminders_alarm", "reminders_v3")
     }
 }
