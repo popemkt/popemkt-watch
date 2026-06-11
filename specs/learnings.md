@@ -10,6 +10,9 @@ Operational knowledge that is true of the *development environment and target ha
 - **Calendar mirror works under Mi Fitness pairing** but syncs lazily — minutes of lag between a phone-side edit and the mirror row. Verify with:
   `content query --uri content://com.google.android.wearable.provider.calendar/instances/when/<beginMs>/<endMs>`
 - The watch's **default alarm ringtone is quiet**; WatchCal bundles its own tone (see 01-architecture decision record).
+- **FSI downgrades to heads-up whenever the screen counts as "on"** — including ambient/AOD while charging. Logcat proof: zero `AlarmActivity` launches across several due-fires while docked. Any sound that lives only in the full-screen activity will silently never play; hence the insistent-notification ring design.
+- **Alarm stream volume was 4/10 and is OEM-locked against shell writes** (`cmd media_session volume --stream 4 --set 10` is accepted but ignored). Only the watch Settings UI changes it.
+- Sound-suppression checklist already ruled out (2026-06-12): DND/zen off, Android 15 notification cooldown off, channel verified on-device via `dumpsys notification` (sound URI + USAGE_ALARM + vibration pattern + FLAG_INSISTENT all present). If the insistent ring is still silent, next probe is the `buzzBeepBlink` attention decision in logcat during a screen-on fire — suspect Xiaomi sysui ("fusion center") interception.
 - Debug runtime permissions can be pushed: `pm grant com.popemkt.watchcal android.permission.READ_CALENDAR` (and `POST_NOTIFICATIONS`); `adb install -r` preserves grants.
 
 ## Build machine
