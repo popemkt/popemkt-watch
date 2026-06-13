@@ -20,7 +20,8 @@ class ReminderCoordinator(
 
     suspend fun refresh() {
         val now = clock()
-        val instances = calendarSource.instances(now - PAST_GRACE_MILLIS, now + ReminderDefaults.AGENDA_WINDOW_MILLIS)
+        val instances =
+            calendarSource.instances(now - PAST_GRACE_MILLIS, now + ReminderDefaults.SCHEDULING_FORWARD_MILLIS)
         stateStore.prune(instances.map { it.instanceKey }.toSet())
         val plan = ReminderPlanner.plan(instances, stateStore.states(), now)
         plan.due.forEach(notifier::show)

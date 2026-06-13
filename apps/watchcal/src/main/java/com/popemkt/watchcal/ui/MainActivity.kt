@@ -60,7 +60,11 @@ private fun WatchCalRoot(app: App) {
     val entries by produceState(initialValue = emptyList<AgendaEntry>(), refreshTick) {
         app.reminderCoordinator.refresh()
         val now = System.currentTimeMillis()
-        val instances = app.calendarSource.instances(now, now + ReminderDefaults.AGENDA_WINDOW_MILLIS)
+        // Agenda shows the whole mirror — past included — independent of the firing window.
+        val instances = app.calendarSource.instances(
+            now - ReminderDefaults.AGENDA_LOOKBACK_MILLIS,
+            now + ReminderDefaults.AGENDA_FORWARD_MILLIS,
+        )
         val states = app.stateStore.states()
         value = instances.map { AgendaEntry(it, states[it.instanceKey]) }
     }

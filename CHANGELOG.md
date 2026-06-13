@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Missed events no longer blast on cold start: a start-trigger only rings within a 10 min "missed grace" of the event start (`ReminderDefaults.MISSED_GRACE_MILLIS`); older start-triggers are *missed* — shown in the agenda (markable done / snoozable) but never auto-notified. Fixes the fresh-install case where every already-started event of the day fired a notification at once. Snooze-returns are unaffected (always ring when due).
+- Agenda now shows the whole calendar mirror, past included (`now − AGENDA_LOOKBACK_MILLIS` … `now + AGENDA_FORWARD_MILLIS`), decoupled from the narrower firing window (`SCHEDULING_FORWARD_MILLIS`, formerly `AGENDA_WINDOW_MILLIS`). Earlier-today/yesterday and missed events are visible and actionable. New day headers: `Yesterday`, weekday, and `MMM d` dates; missed rows get a `!` glyph.
+- Settings moved to a `⚙` gear chip pinned at the top of the agenda (under the clock) — reachable without scrolling.
+- Scroll jank fixed: agenda grouping + per-row string formatting is precomputed once per data change (`remember(entries)` → `buildSections`) instead of allocating `Calendar`/`DateFormat`/`groupBy` on every scroll frame.
+
 - Gentler, longer alert tone: `watchcal_alarm.wav` regenerated as a soft ~10 s rising-arpeggio bell chime (pure sines, soft attack, long decay, normalised below clipping) replacing the harsh dual-tone beep. Set as the channel sound on the `USAGE_NOTIFICATION` stream (channel `reminders_v5`; `USAGE_ALARM` had suppressed the whole alert on the Xiaomi Watch 5). Attention rides duration, not harshness; loops under `FLAG_INSISTENT` until acted.
 
 - Agenda redesign: Wear `Scaffold` (curved clock + vignette) over a `ScalingLazyColumn`, rows grouped under `Today`/`Tomorrow`/weekday headers, a leading state glyph (`○`/`Zz`/`✓`) with muted+struck styling for done rows, a styled empty state, the full-screen-intent grant demoted to a single `⚠` warning chip, and Settings reached via a `⚙` compact chip at the foot. The one-tap state cycle is kept but its secondary label now names the next tap's outcome (`tap: done` / `done → snooze` / `snoozed → reset`). No icon-font dependency added — text glyphs only.

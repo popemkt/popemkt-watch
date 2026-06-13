@@ -41,6 +41,7 @@ UPCOMING ──(begin time reached)──► NOTIFIED ──(Done)──► DONE
 - State is **per instance**, keyed by `eventId:beginTime`. A recurring event's occurrences are independent: marking Monday's standup Done says nothing about Tuesday's.
 - If the event is moved on the phone, the instance key changes — the reminder resets to UPCOMING at the new time, and the stale state is pruned. This is correct: a moved event is a new commitment.
 - Reminders fire **at event start**. `TODO NGH:` canonical expectation is honoring each event's own reminder minutes (the calendar mirror exposes a Reminders table); current implementation uses begin-time only; impact: users relying on "10 min before" leads see later notifications; closes: read `WearableCalendarContract.Reminders` and use the earliest lead per instance.
+- **Missed events never ring.** A start-trigger is "live" only within a short grace (default **10 minutes**) of the start. If the app first sees an instance whose start passed earlier than that — a fresh install, a late phone sync, a long doze — it is **missed**: shown in the agenda (so it can be ticked Done or snoozed-to-retest) but **never auto-notified**. This is what stops a cold start from firing every event that already happened today at once. (Only Upcoming start-triggers are subject to the grace; a snooze-return always rings when due, however late.)
 - **All-day events never notify.** They appear in the agenda only.
 - An un-acted notification does not re-buzz on background refreshes; a snoozed one that comes back does buzz again.
 
@@ -48,17 +49,18 @@ UPCOMING ──(begin time reached)──► NOTIFIED ──(Done)──► DONE
 
 The app screen is a minimal agenda:
 
-- Lists event instances for the next **48 hours**, soonest first.
+- Shows **the whole calendar mirror** the watch holds — roughly a day or two back through a week forward — soonest order, **past included**. Earlier-today and yesterday's events stay visible so a Done or missed item can still be seen and acted on. (The agenda's reach is independent of the narrower window the firing pipeline scans for the next wake.)
 - The current time of day is always visible (the Wear curved clock at the top of the screen).
-- Rows are **grouped under day headers** — `Today`, `Tomorrow`, then weekday names — so the soonest-first order stays legible across the 48h window.
+- Rows are **grouped under day headers** — `Yesterday`, `Today`, `Tomorrow`, then weekday names, then dates (`MMM d`) for anything further out.
 - Each row carries a **state glyph**, the title, the start time, and a state line:
-  - **Upcoming** — neutral glyph (`○`); state line is the lead context (`upcoming`, or `all day` for all-day events).
-  - **Snoozed** — `Zz` glyph; state line reads `snoozed until <time>`.
+  - **Upcoming, still ahead** — neutral glyph (`○`); state line is the lead context (`tap: done`, or `all day` for all-day events).
+  - **Missed** (start already passed, never rung) — `!` glyph; state line reads `missed → tap: done`.
+  - **Snoozed** — `Zz` glyph; state line reads `snoozed til <time> → reset`.
   - **Done** — `✓` glyph, the row visibly **muted** (dimmed, title struck through) so completed items recede.
-- Tapping a row **cycles the reminder state**: upcoming/notified → **Done** (same semantics as the notification action) → **snoozed for one interval** (the undo — re-enters the nag loop and comes back) → **upcoming** (state cleared; fires at event start again, or immediately if the start already passed). Done is therefore recoverable from the agenda; an accidental tap costs taps, never the task. The snoozed step doubles as a deliberate "ring me in N" test affordance for any event.
-- The state line **names the next tap's outcome** (`tap: done`, `done · tap to snooze`, `snoozed · tap to reset`) so the one gesture is never a mystery.
-- When the window is empty, the screen says so plainly (`Nothing in the next 48h`) rather than showing a blank list.
-- **Settings** is reached from a gear affordance at the foot of the agenda; **all-day events** never carry a reminder and are shown for context only.
+- Tapping a row **cycles the reminder state**: upcoming/notified → **Done** (same semantics as the notification action) → **snoozed for one interval** (the undo — re-enters the nag loop and comes back) → **upcoming** (state cleared; fires at event start again if still ahead, otherwise it is simply missed). Done is therefore recoverable from the agenda; an accidental tap costs taps, never the task. The snoozed step doubles as a deliberate "ring me in N" test affordance for any event.
+- The state line **names the next tap's outcome** (`tap: done`, `done → snooze`, `snoozed → reset`) so the one gesture is never a mystery.
+- When the mirror is empty, the screen says so plainly (`Nothing in the mirror`) rather than showing a blank list.
+- **Settings** is reached from a `⚙` gear chip pinned at the **top** of the agenda (directly under the clock) — reachable the instant the app opens, no scrolling. All-day events never carry a reminder and are shown for context only.
 
 ## Sync
 

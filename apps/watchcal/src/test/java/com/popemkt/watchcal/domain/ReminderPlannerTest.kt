@@ -49,6 +49,22 @@ class ReminderPlannerTest {
     }
 
     @Test
+    fun `an event whose start passed long ago is missed - shown but never rung`() {
+        // 30 min late, well past the 10 min missed grace: the cold-start blast bug.
+        val longGone = event(1, beginOffsetMinutes = -30)
+        val plan = ReminderPlanner.plan(listOf(longGone), emptyMap(), now)
+        assertTrue("a missed event must not ring", plan.due.isEmpty())
+        assertNull("a missed event schedules no wake", plan.nextWakeMillis)
+    }
+
+    @Test
+    fun `an event that just started still rings within the missed grace`() {
+        val justStarted = event(1, beginOffsetMinutes = -5) // inside the 10 min grace
+        val plan = ReminderPlanner.plan(listOf(justStarted), emptyMap(), now)
+        assertEquals(listOf(justStarted), plan.due)
+    }
+
+    @Test
     fun `planner schedules exactly one next wake at the earliest pending trigger`() {
         val inTen = event(1, beginOffsetMinutes = 10)
         val inThirty = event(2, beginOffsetMinutes = 30)

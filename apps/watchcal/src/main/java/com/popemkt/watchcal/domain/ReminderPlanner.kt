@@ -24,19 +24,33 @@ object ReminderPlanner {
             .mapNotNull { instance ->
                 when (val state = states[instance.instanceKey] ?: ReminderState.Upcoming) {
                     ReminderState.Done -> null
-                    ReminderState.Upcoming -> instance to instance.beginMillis
-                    is ReminderState.Snoozed -> instance to state.untilMillis
+                    // A start-trigger is "live" only near its time; a snooze-return always fires.
+                    ReminderState.Upcoming -> Trigger(instance, instance.beginMillis, fromStart = true)
+                    is ReminderState.Snoozed -> Trigger(instance, state.untilMillis, fromStart = false)
                 }
             }
 
-        val due = pending.filter { (_, triggerAt) -> triggerAt <= nowMillis }
-            .sortedBy { (_, triggerAt) -> triggerAt }
-            .map { (instance, _) -> instance }
+        val due = pending
+            .filter { it.isLiveAt(nowMillis) }
+            .sortedBy { it.triggerAt }
+            .map { it.instance }
         val nextWakeMillis = pending
-            .map { (_, triggerAt) -> triggerAt }
+            .map { it.triggerAt }
             .filter { it > nowMillis }
             .minOrNull()
 
         return Plan(due, nextWakeMillis)
+    }
+
+    private data class Trigger(val instance: EventInstance, val triggerAt: Long, val fromStart: Boolean) {
+        /**
+         * Reached, and either a snooze-return (always rings) or a start-trigger still
+         * inside the missed grace. A start-trigger older than the grace is *missed* —
+         * never rung, only shown in the agenda.
+         */
+        fun isLiveAt(nowMillis: Long): Boolean {
+            if (triggerAt > nowMillis) return false
+            return !fromStart || nowMillis - triggerAt <= ReminderDefaults.MISSED_GRACE_MILLIS
+        }
     }
 }

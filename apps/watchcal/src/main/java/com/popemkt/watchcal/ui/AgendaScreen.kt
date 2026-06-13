@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -16,7 +17,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.ScalingLazyListScope
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.Button
@@ -36,9 +36,9 @@ import java.util.Date
 
 /**
  * The agenda (specs/00-product.md § Agenda): a Wear Scaffold over a
- * ScalingLazyColumn. The body narrates its sections — grant warning, day
- * groups, empty state, settings — at one abstraction level; each section's
- * detail lives in a named helper below.
+ * ScalingLazyColumn. All grouping + string formatting is precomputed once per
+ * entries-change (see [buildSections]) so scrolling never re-buckets or
+ * re-formats on the render path — the body just emits prebuilt rows.
  */
 @Composable
 fun AgendaScreen(
@@ -47,69 +47,53 @@ fun AgendaScreen(
     onOpenSettings: () -> Unit,
     onGrantFullScreen: (() -> Unit)? = null,
 ) {
+    val context = LocalContext.current
+    val sections = remember(entries) { buildSections(entries, context) }
     val listState = rememberScalingLazyListState()
+
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
     ) {
         ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            item { ListHeader { Text("Agenda") } }
+            item { SettingsGear(onOpenSettings) }
             if (onGrantFullScreen != null) item { GrantFullScreenChip(onGrantFullScreen) }
-            if (entries.isEmpty()) item { EmptyAgenda() } else dayGroups(entries, onToggleDone)
-            item { SettingsChip(onOpenSettings) }
+            if (sections.isEmpty()) item { EmptyAgenda() }
+            sections.forEach { section ->
+                item(key = "day:${section.label}") { ListHeader { Text(section.label) } }
+                items(section.rows, key = { it.key }) { row -> AgendaRow(row, onToggleDone) }
+            }
         }
     }
 }
 
-/** Emits a `ListHeader` per day (Today/Tomorrow/weekday) followed by that day's rows. */
-private fun ScalingLazyListScope.dayGroups(
-    entries: List<AgendaEntry>,
-    onToggleDone: (AgendaEntry) -> Unit,
-) {
-    val now = System.currentTimeMillis()
-    entries.groupBy { localDayIndex(it.instance.beginMillis) }.forEach { (_, dayEntries) ->
-        item { ListHeader { Text(dayLabel(dayEntries.first().instance.beginMillis, now)) } }
-        items(dayEntries, key = { it.instance.instanceKey }) { entry -> AgendaRow(entry, onToggleDone) }
-    }
-}
-
 @Composable
-private fun AgendaRow(entry: AgendaEntry, onToggleDone: (AgendaEntry) -> Unit) {
-    val context = LocalContext.current
-    val done = entry.state == ReminderState.Done
+private fun AgendaRow(row: RowUi, onToggleDone: (AgendaEntry) -> Unit) {
     Chip(
         modifier = Modifier.fillMaxWidth(),
-        colors = if (done) ChipDefaults.childChipColors() else ChipDefaults.secondaryChipColors(),
-        icon = { Text(entry.glyph(), style = MaterialTheme.typography.title3) },
+        colors = if (row.muted) ChipDefaults.childChipColors() else ChipDefaults.secondaryChipColors(),
+        icon = { Text(row.glyph, style = MaterialTheme.typography.title3) },
         label = {
             Text(
-                entry.instance.title,
+                row.title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                textDecoration = if (done) TextDecoration.LineThrough else TextDecoration.None,
+                textDecoration = if (row.muted) TextDecoration.LineThrough else TextDecoration.None,
             )
         },
-        secondaryLabel = { Text(entry.secondaryLabel(context), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        onClick = { onToggleDone(entry) },
+        secondaryLabel = { Text(row.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        onClick = { onToggleDone(row.entry) },
     )
 }
 
-/** Leading state glyph — matches the `Zz`/`✓` vocabulary of the alarm buttons. */
-private fun AgendaEntry.glyph(): String = when (state) {
-    ReminderState.Done -> "✓"
-    is ReminderState.Snoozed -> "Zz"
-    else -> "○"
-}
-
-/** Time + state, and the name of the next tap's outcome (the one-gesture cycle is self-documenting). */
-private fun AgendaEntry.secondaryLabel(context: Context): String {
-    val time = DateFormat.getTimeFormat(context).format(Date(instance.beginMillis))
-    return when (val s = state) {
-        ReminderState.Done -> "$time · done → snooze"
-        is ReminderState.Snoozed ->
-            "snoozed til ${DateFormat.getTimeFormat(context).format(Date(s.untilMillis))} → reset"
-        else -> if (instance.allDay) "all day" else "$time → tap: done"
-    }
+@Composable
+private fun SettingsGear(onClick: () -> Unit) {
+    CompactChip(
+        modifier = Modifier.fillMaxWidth(),
+        colors = ChipDefaults.secondaryChipColors(),
+        label = { Text("⚙  Settings") },
+        onClick = onClick,
+    )
 }
 
 @Composable
@@ -124,16 +108,6 @@ private fun GrantFullScreenChip(onClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsChip(onClick: () -> Unit) {
-    CompactChip(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        colors = ChipDefaults.secondaryChipColors(),
-        label = { Text("⚙  Settings") },
-        onClick = onClick,
-    )
-}
-
-@Composable
 private fun EmptyAgenda() {
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -141,7 +115,7 @@ private fun EmptyAgenda() {
     ) {
         Text("○", style = MaterialTheme.typography.display3)
         Text(
-            "Nothing in the next 48h",
+            "Nothing in the mirror",
             style = MaterialTheme.typography.body2,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp),
@@ -168,6 +142,51 @@ fun PermissionScreen(onRequest: () -> Unit) {
     }
 }
 
+// --- precomputed presentation model (off the render path) ---
+
+private data class RowUi(
+    val key: String,
+    val title: String,
+    val glyph: String,
+    val secondary: String,
+    val muted: Boolean,
+    val entry: AgendaEntry,
+)
+
+private data class DaySection(val label: String, val rows: List<RowUi>)
+
+/** Buckets entries by local day and pre-renders every per-row string exactly once. */
+private fun buildSections(entries: List<AgendaEntry>, context: Context): List<DaySection> {
+    val now = System.currentTimeMillis()
+    return entries
+        .groupBy { localDayIndex(it.instance.beginMillis) }
+        .map { (_, dayEntries) ->
+            DaySection(
+                label = dayLabel(dayEntries.first().instance.beginMillis, now),
+                rows = dayEntries.map { it.toRowUi(context, now) },
+            )
+        }
+}
+
+private fun AgendaEntry.toRowUi(context: Context, now: Long): RowUi {
+    val time = DateFormat.getTimeFormat(context).format(Date(instance.beginMillis))
+    return when (val s = state) {
+        ReminderState.Done -> RowUi(key(), instance.title, "✓", "$time · done → snooze", muted = true, entry = this)
+        is ReminderState.Snoozed -> {
+            val until = DateFormat.getTimeFormat(context).format(Date(s.untilMillis))
+            RowUi(key(), instance.title, "Zz", "snoozed til $until → reset", muted = false, entry = this)
+        }
+        else -> when {
+            instance.allDay -> RowUi(key(), instance.title, "○", "all day", muted = false, entry = this)
+            instance.beginMillis < now ->
+                RowUi(key(), instance.title, "!", "$time · missed → tap: done", muted = false, entry = this)
+            else -> RowUi(key(), instance.title, "○", "$time → tap: done", muted = false, entry = this)
+        }
+    }
+}
+
+private fun AgendaEntry.key(): String = instance.instanceKey
+
 /** Local-calendar day bucket; events sorted soonest-first stay contiguous per day. */
 private fun localDayIndex(millis: Long): Int = midnight(millis).let { cal ->
     cal.get(Calendar.YEAR) * 1000 + cal.get(Calendar.DAY_OF_YEAR)
@@ -175,10 +194,12 @@ private fun localDayIndex(millis: Long): Int = midnight(millis).let { cal ->
 
 private fun dayLabel(millis: Long, now: Long): String {
     val days = ((midnight(millis).timeInMillis - midnight(now).timeInMillis) / DAY_MILLIS).toInt()
-    return when (days) {
-        0 -> "Today"
-        1 -> "Tomorrow"
-        else -> DateFormat.format("EEEE", millis).toString()
+    return when {
+        days == 0 -> "Today"
+        days == 1 -> "Tomorrow"
+        days == -1 -> "Yesterday"
+        days in 2..6 -> DateFormat.format("EEEE", millis).toString()
+        else -> DateFormat.format("MMM d", millis).toString()
     }
 }
 
