@@ -5,6 +5,13 @@ Operational knowledge that is true of the *development environment and target ha
 ## Xiaomi Watch 5 (primary test device, Wear OS, Android 16 / SDK 36) — observed 2026-06-11
 
 - **Wireless adb only** (charge cable has no data lines). Pair via `adb pair`, discover with `adb mdns services`; ports rotate per session.
+- **`adb mdns services` is blind on this Mac — use macOS `dns-sd` instead.** When discovery returns an empty list, browse + resolve natively (the connect port rotates every screen-off/Wi-Fi reconnect, so re-resolve each time):
+  ```sh
+  dns-sd -B _adb-tls-connect._tcp                       # → instance name, e.g. adb-e03ace78-36yJMU
+  dns-sd -L "adb-e03ace78-36yJMU" _adb-tls-connect._tcp # → "Android.local.:45937" = the connect host:port
+  adb connect 192.168.2.19:45937                        # pairing persists; only the port changes
+  ```
+  `dns-sd` runs forever — wrap in `( dns-sd … & p=$!; sleep 3; kill $p )`. The watch sits on subnet `192.168.2.x` while the Mac is on `192.168.1.x`; they still route (ping + connect work across them).
 - **adb drops seconds after screen-off** (Wi-Fi power save). Working pattern: background poll-loop `adb connect … && adb shell echo alive`, run the payload the moment it answers, wake the watch screen for pushes.
 - **Full-screen intents are appop-gated on Android 14+.** The manifest permission `USE_FULL_SCREEN_INTENT` reports `granted=true` while the *appop* sits at `default` = silently rejected at notification-post time (`appops get com.popemkt.watchcal USE_FULL_SCREEN_INTENT` shows a `rejectTime`). Dev fix: `appops set … allow`. Product fix: the agenda's "Allow full-screen alerts" chip deep-links to `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`.
 - **Calendar mirror works under Mi Fitness pairing** but syncs lazily — minutes of lag between a phone-side edit and the mirror row. Verify with:
