@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Performance (P0): release builds are now R8-minified and sideloadable (debug-key-signed for testing) so on-watch perf is judged on a non-`debuggable` build — the real cause of the scroll jank. Added baseline-profile infrastructure: new `:apps:watchcal-baselineprofile` (`com.android.test`) producer module with a startup+scroll journey, `androidx.baselineprofile` plugin + `androidx.profileinstaller`, and a `generateBaselineProfile` entrypoint (runs on a connected device/emulator) for JIT-free startup and scroll. Roadmap recorded in `specs/03-roadmap.md`.
+
 - Missed events no longer blast on cold start: a start-trigger only rings within a 10 min "missed grace" of the event start (`ReminderDefaults.MISSED_GRACE_MILLIS`); older start-triggers are *missed* — shown in the agenda (markable done / snoozable) but never auto-notified. Fixes the fresh-install case where every already-started event of the day fired a notification at once. Snooze-returns are unaffected (always ring when due).
 - Agenda now shows the whole calendar mirror, past included (`now − AGENDA_LOOKBACK_MILLIS` … `now + AGENDA_FORWARD_MILLIS`), decoupled from the narrower firing window (`SCHEDULING_FORWARD_MILLIS`, formerly `AGENDA_WINDOW_MILLIS`). Earlier-today/yesterday and missed events are visible and actionable. New day headers: `Yesterday`, weekday, and `MMM d` dates; missed rows get a `!` glyph.
 - Settings moved to a `⚙` gear chip pinned at the top of the agenda (under the clock) — reachable without scrolling.

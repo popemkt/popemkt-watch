@@ -8,7 +8,8 @@ Gradle multi-project build — one repo, many apps:
 
 ```text
 apps/        deployable applications (each `com.android.application` module = one APK)
-  watchcal/  the Wear OS calendar reminder app (`:apps:watchcal`)
+  watchcal/                 the Wear OS calendar reminder app (`:apps:watchcal`)
+  watchcal-baselineprofile/ `com.android.test` baseline-profile producer for watchcal (P0 perf)
 libs/        (future) shared Kotlin/Android libraries, extracted per the cohesion rule's
              PROMOTE verdict — a complete unit earns a lib
 gradle/libs.versions.toml   single version catalog shared by all modules
@@ -110,6 +111,8 @@ Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEE
 - `androidx.wear:wear` for `WearableCalendarContract`.
 - detekt (L2 sensors, warn-only — `config/detekt/detekt.yml`), Konsist in unit tests (L1 fences).
 - Standalone wear app: `com.google.android.wearable.standalone = true`.
+- **Release builds are R8-minified and carry a baseline profile** (`androidx.baselineprofile` + `androidx.profileinstaller`). The `release` build type is signed with the **debug key for sideload testing only** — this is *not* a distribution key; a real key must replace it before any store release. Performance is always judged on a release build (a `debuggable` build makes Compose janky on the watch CPU; specs/03-roadmap.md § P0).
+- **Baseline-profile producer module** `:apps:watchcal-baselineprofile` (`com.android.test`, `targetProjectPath = ":apps:watchcal"`) runs a startup + agenda-scroll journey to capture hot code. `useConnectedDevices = true` — generation needs a connected watch or Wear emulator.
 
 ## Entrypoints
 
@@ -118,10 +121,12 @@ Gradle tasks are the only valid entrypoints:
 | Task | Purpose |
 |---|---|
 | `./scripts/setup-toolchain.sh` | one-time per machine: provisions JDK 21, Gradle wrapper, Android SDK into `.tooling/` (gitignored) and writes `local.properties` |
-| `./gradlew assembleDebug` | build APK |
+| `./gradlew assembleDebug` | build debug APK |
+| `./gradlew assembleRelease` | build R8-minified, profiled, debug-key-signed APK (the perf-representative build) |
 | `./gradlew test` | unit tests (planner stories + Konsist fences) |
 | `./gradlew detekt` | L2 smell report (never blocks) |
 | `./gradlew installDebug` | deploy to connected watch/emulator |
+| `./gradlew :apps:watchcal:generateBaselineProfile` | run the journey on a connected device, package the baseline profile into the app |
 
 Builds run with `JAVA_HOME=.tooling/jdk-21/Contents/Home` when the system JDK is incompatible with AGP.
 

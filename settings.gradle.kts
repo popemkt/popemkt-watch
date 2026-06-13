@@ -23,3 +23,5 @@ rootProject.name = "popemkt-watch"
 
 // Monorepo shape: every deployable app lives under apps/, shared code under libs/.
 include(":apps:watchcal")
+// Baseline-profile producer for :apps:watchcal (P0 perf; specs/03-roadmap.md).
+include(":apps:watchcal-baselineprofile")

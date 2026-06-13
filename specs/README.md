@@ -9,6 +9,7 @@ WatchCal is developed **spec-as-source**. This folder is the spec of record. Tog
 | [00-product.md](./00-product.md) | **Functional spec** — what the app does, reminder semantics, agenda behavior, non-goals |
 | [01-architecture.md](./01-architecture.md) | **Technical spec** — package layout, data flow, alarm pipeline, persistence, permissions, toolchain, entrypoints, decision records |
 | [02-code-unit-cohesion.md](./02-code-unit-cohesion.md) | Code-unit sizing & boundary contract — L1/L2/L3 layers, thresholds, fence map, rubric |
+| [03-roadmap.md](./03-roadmap.md) | **Roadmap** — ordered path to the best reminder app for this watch (P0 perf → P5 infra); living plan, items graduate into 00/01 when picked up |
 | [rules-index.md](./rules-index.md) | Single entry point to every rule; one canonical home per rule |
 | [learnings.md](./learnings.md) | Environment & device facts (test hardware quirks, build machine) — operational, not part of the reimplementation contract |
 
