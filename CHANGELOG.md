@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Agenda redesign: Wear `Scaffold` (curved clock + vignette) over a `ScalingLazyColumn`, rows grouped under `Today`/`Tomorrow`/weekday headers, a leading state glyph (`○`/`Zz`/`✓`) with muted+struck styling for done rows, a styled empty state, the full-screen-intent grant demoted to a single `⚠` warning chip, and Settings reached via a `⚙` compact chip at the foot. The one-tap state cycle is kept but its secondary label now names the next tap's outcome (`tap: done` / `done → snooze` / `snoozed → reset`). No icon-font dependency added — text glyphs only.
+- Settings: sound test reduced to the single one-tap "Test sound" the spec promises; the five-path diagnostic cycler (a dev affordance that had leaked into the release surface) is removed. Settings now also has the curved clock + header.
+
 - Adaptive launcher icon: replaced the stock `@android:drawable/ic_menu_my_calendar` (a flat menu glyph with no background, hence the "barebone, no circle" look) with a proper adaptive icon — a calendar page + clock-face foreground over a teal full-bleed background that Wear masks to a circle. Foreground/background/monochrome layers in `res/mipmap-anydpi-v26`; minSdk 30 means no legacy PNG fallback is needed.
 
 - Sound investigation closed: the Xiaomi Watch 5's Android audio framework exposes no speaker output to apps (all playback APIs fail with ENODEV; see `specs/learnings.md`). Alerts are vibration-first on this device. Settings "Test:" chip cycles five playback variants for diagnosing future devices.

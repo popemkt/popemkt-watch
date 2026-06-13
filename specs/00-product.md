@@ -25,7 +25,7 @@ A due reminder takes over like an RTOS-watch alarm, not a passive notification:
 ## Settings
 
 - **Snooze interval** is configurable in-app as **minutes + seconds** (default 10 min 0 s, clamped to 10 s – 60 min). One global value; applies to the next snooze, not retroactively to already-snoozed reminders.
-- **Test sound** button: plays the bundled alert tone once on the alarm stream — verifies speaker + volume without waiting for a real reminder.
+- **Test sound** button: a single tap plays the bundled alert tone once on the alarm stream — verifies speaker + volume without waiting for a real reminder. (The multi-path diagnostic cycler used while bisecting the Xiaomi Watch 5 audio dead-end is dev-only and out of the release surface; see `specs/learnings.md`. On a device with no app audio output the tone is silently a no-op, by design.)
 
 ## Reminder lifecycle
 
@@ -48,8 +48,16 @@ UPCOMING ──(begin time reached)──► NOTIFIED ──(Done)──► DONE
 The app screen is a minimal agenda:
 
 - Lists event instances for the next **48 hours**, soonest first.
-- Each row shows title, start time, and reminder state (upcoming / snoozed-until / done).
+- The current time of day is always visible (the Wear curved clock at the top of the screen).
+- Rows are **grouped under day headers** — `Today`, `Tomorrow`, then weekday names — so the soonest-first order stays legible across the 48h window.
+- Each row carries a **state glyph**, the title, the start time, and a state line:
+  - **Upcoming** — neutral glyph (`○`); state line is the lead context (`upcoming`, or `all day` for all-day events).
+  - **Snoozed** — `Zz` glyph; state line reads `snoozed until <time>`.
+  - **Done** — `✓` glyph, the row visibly **muted** (dimmed, title struck through) so completed items recede.
 - Tapping a row **cycles the reminder state**: upcoming/notified → **Done** (same semantics as the notification action) → **snoozed for one interval** (the undo — re-enters the nag loop and comes back) → **upcoming** (state cleared; fires at event start again, or immediately if the start already passed). Done is therefore recoverable from the agenda; an accidental tap costs taps, never the task. The snoozed step doubles as a deliberate "ring me in N" test affordance for any event.
+- The state line **names the next tap's outcome** (`tap: done`, `done · tap to snooze`, `snoozed · tap to reset`) so the one gesture is never a mystery.
+- When the window is empty, the screen says so plainly (`Nothing in the next 48h`) rather than showing a blank list.
+- **Settings** is reached from a gear affordance at the foot of the agenda; **all-day events** never carry a reminder and are shown for context only.
 
 ## Sync
 
