@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
 import android.text.format.DateFormat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -26,17 +28,24 @@ class ReminderNotifier(
 ) {
 
     fun ensureChannel() {
-        // Default sound on purpose: a custom alarm-stream sound got the whole alert
-        // suppressed on the Xiaomi Watch 5 (see TODO NGH: in specs/01 § Notifications).
+        // Bundled gentle ~10s chime on the NOTIFICATION usage. The alarm-usage path
+        // got the whole alert suppressed on the Xiaomi Watch 5 (specs/learnings.md);
+        // notification-usage is the remaining untested branch. INSISTENT loops it
+        // until the notification is cancelled, so the soft motif carries until acted.
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.channel_reminders),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
             enableVibration(true)
-            // INSISTENT doesn't loop vibration on the test device — the salvo itself
-            // must carry the urgency (~4.6s; specs/01 § Notifications).
             vibrationPattern = longArrayOf(0, 600, 200, 600, 200, 600, 500, 800, 300, 800)
+            setSound(
+                Uri.parse("android.resource://${context.packageName}/${R.raw.watchcal_alarm}"),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
@@ -93,7 +102,8 @@ class ReminderNotifier(
     }
 
     companion object {
-        const val CHANNEL_ID = "reminders_v4"
-        private val LEGACY_CHANNEL_IDS = listOf("reminders", "reminders_alarm", "reminders_v3")
+        const val CHANNEL_ID = "reminders_v5"
+        private val LEGACY_CHANNEL_IDS =
+            listOf("reminders", "reminders_alarm", "reminders_v3", "reminders_v4")
     }
 }

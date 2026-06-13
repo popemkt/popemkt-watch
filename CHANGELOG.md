@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Gentler, longer alert tone: `watchcal_alarm.wav` regenerated as a soft ~10 s rising-arpeggio bell chime (pure sines, soft attack, long decay, normalised below clipping) replacing the harsh dual-tone beep. Set as the channel sound on the `USAGE_NOTIFICATION` stream (channel `reminders_v5`; `USAGE_ALARM` had suppressed the whole alert on the Xiaomi Watch 5). Attention rides duration, not harshness; loops under `FLAG_INSISTENT` until acted.
+
 - Agenda redesign: Wear `Scaffold` (curved clock + vignette) over a `ScalingLazyColumn`, rows grouped under `Today`/`Tomorrow`/weekday headers, a leading state glyph (`○`/`Zz`/`✓`) with muted+struck styling for done rows, a styled empty state, the full-screen-intent grant demoted to a single `⚠` warning chip, and Settings reached via a `⚙` compact chip at the foot. The one-tap state cycle is kept but its secondary label now names the next tap's outcome (`tap: done` / `done → snooze` / `snoozed → reset`). No icon-font dependency added — text glyphs only.
 - Settings: sound test reduced to the single one-tap "Test sound" the spec promises; the five-path diagnostic cycler (a dev affordance that had leaked into the release surface) is removed. Settings now also has the curved clock + header.
 
