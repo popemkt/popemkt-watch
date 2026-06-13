@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Adaptive launcher icon: replaced the stock `@android:drawable/ic_menu_my_calendar` (a flat menu glyph with no background, hence the "barebone, no circle" look) with a proper adaptive icon — a calendar page + clock-face foreground over a teal full-bleed background that Wear masks to a circle. Foreground/background/monochrome layers in `res/mipmap-anydpi-v26`; minSdk 30 means no legacy PNG fallback is needed.
+
 - Sound investigation closed: the Xiaomi Watch 5's Android audio framework exposes no speaker output to apps (all playback APIs fail with ENODEV; see `specs/learnings.md`). Alerts are vibration-first on this device. Settings "Test:" chip cycles five playback variants for diagnosing future devices.
 
 - Alarm-style full-screen alert: a due reminder lights the screen, takes it over (title + Snooze/Done), and rings + vibrates on the alarm stream until acted on; ring bounded at 60 s, then auto-snoozes. Any exit other than Done (swipe back, timeout) is a snooze. Heads-up fallback when the watch is in use.

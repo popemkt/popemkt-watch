@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WatchCal launcher foreground: a calendar page with binder rings and an
+  alarm dot. Drawn inside the adaptive-icon 108dp viewport; all strokes sit
+  within the central ~66dp safe zone so the circular Wear mask never clips it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Binder rings poking above the calendar header -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,28 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M66,28 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
+
+    <!-- Calendar body (rounded page) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,32 L72,32 A6,6 0 0,1 78,38 L78,76 A6,6 0 0,1 72,82 L36,82 A6,6 0 0,1 30,76 L30,38 A6,6 0 0,1 36,32 Z" />
+
+    <!-- Header band -->
+    <path
+        android:fillColor="#0E7C66"
+        android:pathData="M30,38 A6,6 0 0,1 36,32 L72,32 A6,6 0 0,1 78,38 L78,46 L30,46 Z" />
+
+    <!-- Alarm clock face on the page -->
+    <path
+        android:fillColor="#0E7C66"
+        android:pathData="M54,66 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,66 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 z" />
+    <!-- Clock hands -->
+    <path
+        android:strokeColor="#0E7C66"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M54,66 L54,60" />
+    <path
+        android:strokeColor="#0E7C66"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M54,66 L59,68" />
+</vector>
