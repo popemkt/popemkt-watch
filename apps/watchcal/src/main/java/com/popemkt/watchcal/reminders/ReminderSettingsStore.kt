@@ -15,7 +15,7 @@ private val Context.settingsPrefs: DataStore<Preferences> by preferencesDataStor
 
 /**
  * Persists user-tunable reminder settings. Read at use time, never cached —
- * a changed snooze interval applies to the next snooze (specs/01-architecture.md).
+ * the interval seeds the next instance's snooze cycle (specs/01-architecture.md).
  */
 class ReminderSettingsStore(private val context: Context) {
 

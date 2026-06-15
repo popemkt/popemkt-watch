@@ -199,6 +199,7 @@ private fun buildSections(entries: List<AgendaEntry>, context: Context): List<Da
 
 private fun AgendaEntry.toRowUi(context: Context, now: Long): RowUi {
     val time = DateFormat.getTimeFormat(context).format(Date(instance.beginMillis))
+    val triggerTime = DateFormat.getTimeFormat(context).format(Date(instance.triggerAtMillis))
     return when (val s = state) {
         ReminderState.Done -> RowUi(key(), instance.title, "✓", "$time · done → snooze", muted = true, entry = this)
         is ReminderState.Snoozed -> {
@@ -207,8 +208,10 @@ private fun AgendaEntry.toRowUi(context: Context, now: Long): RowUi {
         }
         else -> when {
             instance.allDay -> RowUi(key(), instance.title, "○", "all day", muted = false, entry = this)
-            instance.beginMillis < now ->
-                RowUi(key(), instance.title, "!", "$time · missed → tap: done", muted = false, entry = this)
+            instance.triggerAtMillis < now ->
+                RowUi(key(), instance.title, "!", "$triggerTime · missed → tap: done", muted = false, entry = this)
+            instance.triggerAtMillis != instance.beginMillis ->
+                RowUi(key(), instance.title, "○", "remind $triggerTime → tap: done", muted = false, entry = this)
             else -> RowUi(key(), instance.title, "○", "$time → tap: done", muted = false, entry = this)
         }
     }

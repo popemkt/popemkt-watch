@@ -28,10 +28,11 @@ apps/watchcal/src/main/java/com/popemkt/watchcal/
                AlarmScheduler, ReminderNotifier, receivers, SyncWorker
   ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity, AlarmVibrator
   tile/        AgendaTileService, AgendaTileRenderer, TileCursorStore   (Wear tile surface)
+  complication/ NextEventComplicationService   (watch-face complication data source)
   App.kt       composition root — builds the object graph, owns channel + periodic worker
 ```
 
-Layer fences (enforced by Konsist, see [`02-code-unit-cohesion.md`](./02-code-unit-cohesion.md)): `domain` imports no other layer; `calendar` may import `domain`; `reminders` may import `domain` + `calendar`; `ui` and `tile` may import `domain` + `calendar` + `reminders` (the two presentation surfaces; neither imports the other). `App.kt` (root) is the only place concrete implementations are wired together.
+Layer fences (enforced by Konsist, see [`02-code-unit-cohesion.md`](./02-code-unit-cohesion.md)): `domain` imports no other layer; `calendar` may import `domain`; `reminders` may import `domain` + `calendar`; `ui` and `tile` may import `domain` + `calendar` + `reminders`; `complication` may import `domain` + `calendar` only. The presentation surfaces do not import each other. `App.kt` (root) is the only place concrete implementations are wired together.
 
 ## Data flow — one pipeline, one entrypoint
 
@@ -48,7 +49,7 @@ Every wakeup source funnels into a single idempotent operation, `ReminderCoordin
                          5. schedule ONE exact alarm at plan.nextWakeMillis
 ```
 
-`ReminderPlanner` is a pure function `(instances, states, now) → Plan(due, nextWakeMillis)` — the entire reminder semantics of `00-product.md` lives there, tested without Android. A start-trigger counts as **due** only while `now − beginMillis ≤ MISSED_GRACE_MILLIS` (10 min); older start-triggers are *missed* (never returned in `due`, and being `≤ now` they schedule no wake). A snooze-return has no grace — it fires whenever its `untilMillis` is reached. This is the design-level fix for the cold-start blast: an empty state store no longer turns every already-started event of the day into a notification.
+`ReminderPlanner` is a pure function `(instances, states, now) → Plan(due, nextWakeMillis)` — the entire reminder semantics of `00-product.md` lives there, tested without Android. For an upcoming event, the trigger is `EventInstance.triggerAtMillis`: the earliest mirrored reminder lead (`beginMillis - leadMinutes`) or `beginMillis` when the mirror has no valid reminder row. A lead/start-trigger counts as **due** only while `now − triggerAtMillis ≤ MISSED_GRACE_MILLIS` (10 min); older triggers are *missed* (never returned in `due`, and being `≤ now` they schedule no wake). A snooze-return has no grace — it fires whenever its `untilMillis` is reached. This is the design-level fix for the cold-start blast: an empty state store no longer turns every already-started event of the day into a notification.
 
 Note the **two distinct windows**: the firing scan (`firingInstances`) reads `now−6h … now+SCHEDULING_FORWARD_MILLIS` (48h) just to decide what is due and when to wake; the **agenda UI** reads a far wider `now−AGENDA_LOOKBACK_MILLIS … now+AGENDA_FORWARD_MILLIS` (≈ the whole mirror, past included) purely for display. Display reach and firing reach are deliberately decoupled. **Pruning follows the display window, not the firing window** (`actionableKeys`): state is only garbage-collected once an event leaves the agenda entirely. Pruning over the narrower firing window was a bug — it orphaned the `done`/`snoozed` state a user had just set on a missed event (6h–2d old) or a far-future event (>48h out), which silently reverted on the very next refresh, so the agenda tap (and the tile tap) appeared dead on exactly those rows.
 
@@ -68,10 +69,10 @@ No foreground service, no ContentObserver service, no own network. The OS calend
 `ReminderStateStore` = Preferences DataStore, one entry per instance key:
 
 ```text
-"st:<eventId>:<beginMillis>"  →  "done"  |  "snoozed:<untilMillis>"
+"st:<eventId>:<beginMillis>"  →  "done"  |  "snoozed:<untilMillis>" | "snoozed:<untilMillis>:<presetIndex>"
 ```
 
-Absence = UPCOMING. Pruning removes keys not present in the current 48h window (moved/deleted/past events) — the store stays O(window), never grows.
+Absence = UPCOMING. Old two-field snooze values decode as `presetIndex = null` for migration. Pruning removes keys not present in the current 48h window (moved/deleted/past events) — the store stays O(window), never grows.
 
 `ReminderSettingsStore` = a second Preferences DataStore (`reminder_settings`), one entry:
 
@@ -79,7 +80,13 @@ Absence = UPCOMING. Pruning removes keys not present in the current 48h window (
 "snooze_interval_millis"  →  Long   (absent = ReminderDefaults.SNOOZE_INTERVAL_MILLIS)
 ```
 
-The setter clamps to [10 s, 60 min] (fail-fast: an out-of-range write is a bug upstream, the clamp keeps persisted state always valid). `ReminderCoordinator.snooze` reads it at snooze time — a changed interval applies to the next snooze, never retroactively.
+The setter clamps to [10 s, 60 min] (fail-fast: an out-of-range write is a bug upstream, the clamp keeps persisted state always valid). `ReminderCoordinator.snooze` reads it at snooze time only when starting an instance's snooze cycle. Once an instance is snoozed, repeated Snooze actions advance the stored preset index through `5m → 10m → 30m → 1h → 5m`; the state carries the index so the cycle is per instance and survives process death.
+
+## Calendar mirror reads
+
+`WearCalendarSource` reads `WearableCalendarContract.Instances` for event occurrences and `WearableCalendarContract.Reminders` for event-level lead minutes. Reminder rows are grouped by `CalendarContract.Reminders.EVENT_ID`; the largest non-negative `MINUTES` value is kept for each event id because it produces the earliest trigger. Each returned `EventInstance` carries `reminderLeadMinutes: Int?`, and its derived `triggerAtMillis` is `beginMillis - reminderLeadMinutes.minutes` when present, otherwise `beginMillis`.
+
+The Reminders table is not queried through the time-window URI, so the reader fetches the small mirrored reminder table once per source call and joins in memory. This preserves the layer boundary (`CalendarSource` still returns domain instances) and keeps reminder semantics out of Android-specific code.
 
 ## Notifications & the full-screen alarm
 
@@ -105,6 +112,7 @@ Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEE
 | `USE_FULL_SCREEN_INTENT` | launch `AlarmActivity` from a due notification | manifest permission granted at install, **but** API 34+ gates it behind an appop that defaults to deny for non-store apps. `MainActivity` checks `NotificationManager.canUseFullScreenIntent()` and offers a deep link to `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`; denied = graceful degrade to heads-up |
 | `VIBRATE` | alarm vibration loop | |
 | `com.google.android.wearable.permission.BIND_TILE_PROVIDER` | system binds the tile service | declared on the `<service>`, held by the system |
+| `com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER` | system binds the complication data source | declared on the `<service>`, held by the system |
 
 ## Tile surface (the watch widget)
 
@@ -127,11 +135,28 @@ Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEE
 - **Cursor via `lastClickableId` + a one-int DataStore (`TileCursorStore`).** `‹`/`›`/card are `Clickable`s carrying a `LoadAction` and an id; on the reload, `State.getLastClickableId()` says which was tapped — `‹`/`›` step the cursor (persisted, clamped), the card triggers the state cycle. Chosen over ProtoLayout dynamic-state expressions: a persisted cursor survives across glances and the API surface is far smaller. The `Open` chip is a `LaunchAction` to `MainActivity` (referenced by class-name string, not import, so `tile` stays decoupled from `ui`).
 - **Material stack: `protolayout-material3` (stable as of 1.4.0).** The tile is built in the M3 `materialScope { primaryLayout(titleSlot/mainSlot/bottomSlot) }` DSL so it shares the app's Material 3 look — caption in `titleSlot`, the tappable event `titleCard` + `‹`/`›` `textButton`s in `mainSlot`, and **`Open` as a `textEdgeButton`** that hugs the round bottom edge (the tile's native answer to "fit the roundness" — the analog of the app's `TransformingLazyColumn` morph; a tile is a single static snapshot with no scrolling list, so the *list morph* itself does not apply). Colors/typography come from the scope's `ColorScheme` (dynamic Material-You theming on), not hand-picked argb. This supersedes the earlier choice of classic `protolayout-material` (`CompactChip`/`PrimaryLayout`), taken when material3 was pre-stable. Futures bridged with `androidx.concurrent.futures.ResolvableFuture` (the tiny `androidx.concurrent:concurrent-futures` artifact — the tiles classpath ships only the guava `ListenableFuture` stub, no settable impl) — no coroutine-future dependency.
 
+## Complication data source
+
+`complication/NextEventComplicationService` is a third presentation surface, sibling to `ui/` and `tile/`. It extends `SuspendingComplicationDataSourceService` from `androidx.wear.watchface:watchface-complications-data-source-ktx`, supports `SHORT_TEXT`, and is manifest-declared with `ACTION_COMPLICATION_UPDATE_REQUEST`, `BIND_COMPLICATION_PROVIDER`, `SUPPORTED_TYPES=SHORT_TEXT`, and `UPDATE_PERIOD_SECONDS=300` (the platform minimum for periodic complications).
+
+Request handling is read-only:
+
+```text
+ watch face ──► NextEventComplicationService.onComplicationRequest(req)
+                  1. permission gate (READ_CALENDAR) — ungranted ⇒ "Open"
+                  2. read forward window from CalendarSource (now … now+AGENDA_FORWARD)
+                  3. choose the first non-all-day event whose end is after now
+                  4. return ShortTextComplicationData(countdown, title, tap-to-open)
+```
+
+No `ComplicationDataSourceUpdateRequester` is used and no app-owned wakeup is introduced. The 5-minute system cadence is a watch-face surface refresh, not part of the reminder alarm budget; exact reminders still flow only through `ReminderCoordinator.refresh()`.
+
 ## Toolchain
 
 - Kotlin 2.4.x, AGP 9.2.x, Gradle 9.5.x, JDK 17 toolchain target (compiled with the bundled JDK 21 — see `JAVA_HOME` note under Entrypoints). `compileSdk 37` (required by core-ktx 1.19 / activity-compose 1.13). **AGP 9 ships built-in Kotlin**: the standalone `org.jetbrains.kotlin.android` plugin is *removed* from every module (applying it now fails), and the JVM target moves from the old `android.kotlinOptions` DSL to the project-level `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }`. The Compose compiler plugin (`org.jetbrains.kotlin.plugin.compose`) is still applied explicitly.
 - Compose for Wear OS — the **app** is on **Material 3** (`androidx.wear.compose:compose-material3` + `:compose-foundation` 1.6.x) with `TransformingLazyColumn`; the **tile** is on **`protolayout-material3`** (`materialScope`/`primaryLayout`, stable 1.4.0). `minSdk 30` (Wear OS 3), `targetSdk 34`. Legacy `compose-material` (M2.5) and classic `protolayout-material` remain on the classpath only until any last reference is gone.
 - `androidx.wear:wear` for `WearableCalendarContract`.
+- `androidx.wear.watchface:watchface-complications-data-source-ktx` for the complication provider service.
 - detekt (L2 sensors, warn-only — `config/detekt/detekt.yml`), Konsist in unit tests (L1 fences).
 - Standalone wear app: `com.google.android.wearable.standalone = true`.
 - **Release builds are R8-minified and carry a baseline profile** (`androidx.baselineprofile` + `androidx.profileinstaller`). The `release` build type is signed with the **debug key for sideload testing only** — this is *not* a distribution key; a real key must replace it before any store release. Performance is always judged on a release build (a `debuggable` build makes Compose janky on the watch CPU; specs/03-roadmap.md § P0).
@@ -165,6 +190,8 @@ Builds run with `JAVA_HOME=.tooling/jdk-21/Contents/Home` when the system JDK is
 - **Insistent notification for the ring, full-screen intent for the takeover.** First implementation put the ring inside `AlarmActivity` (via FSI); on-device testing showed the system frequently downgrades FSI to heads-up (ambient/AOD counts as screen-on, e.g. while charging) — leaving the alert silent. The ring now lives on the notification (`FLAG_INSISTENT` + channel sound on the alarm stream), which sounds in every presentation; FSI remains for the screen takeover when allowed. Rejected: a foreground service ringer (battery rule; more moving parts) and forcing the takeover from the background (the OS forbids it — FSI *is* the sanctioned path).
 - **Bundled gentle chime over device default ringtone, length over loudness.** The test device's default alarm tone is quiet and device tones vary unpredictably across watches (specs/learnings.md). WatchCal ships a generated tone (`res/raw/watchcal_alarm.wav`, produced deterministically by `scripts/generate-alarm-tone.py`, committed as an asset). The tone is a **gentle ~10 s rising-arpeggio bell chime** — pure additive sines, soft attack, long exponential decay, normalised below clipping — chosen after the original harsh dual-tone beep: attention rides the *duration* (it loops under `FLAG_INSISTENT` until acted), the timbre stays easy on the ears. It is the channel sound on the `USAGE_NOTIFICATION` stream (not `USAGE_ALARM`, which suppressed the whole alert on the Xiaomi Watch 5; specs/learnings.md). Rejected: forcing stream volume up (user hostile, fights system settings), `RingtoneManager` defaults (unpredictable loudness), and the harsh soft-clipped beep (the user asked for a longer, gentler alert).
 - **Snooze interval read at snooze time, stored in DataStore.** The coordinator asks `ReminderSettingsStore` when a snooze happens; nothing caches the value. Rejected: pushing the interval into `ReminderPlanner` (the planner deals in absolute trigger times; intervals are an input to state transitions, not planning) and per-event intervals (spec non-goal).
+- **Snooze cycle stored with state, not settings.** The global setting seeds the first snooze only; the per-instance state stores the active preset index after that. Rejected: adding multiple notification buttons (too much width on Wear heads-up/notification surfaces), a settings-only solution (too slow at action time), and per-event custom snooze configs (state explosion for a small watch app).
+- **Complication is short-text and read-only.** Watch faces own layout and slot size; WatchCal supplies compact data only. Rejected: action cycling from the complication (hit targets are too small and watch-face-dependent) and immediate-update loops (battery rule; the 5-minute system cadence is sufficient for a glance).
 - **Agenda is a Material 3 `AppScaffold`/`ScreenScaffold` over a `TransformingLazyColumn`, so rows scale + morph to the round display's curve at the top/bottom edges** — the platform-native answer to "fit the roundness" (the same component the 2024+ Gemini/Google Calendar Wear surfaces use). Each item carries `Modifier.transformedHeight(this, spec)` + `transformation = SurfaceTransformation(spec)` from a single `rememberTransformationSpec()`; the per-item morph modifier is built at the call site (where the `TransformingLazyColumn` item scope is in scope) and passed into the row composable. A `ChildButton` gear to Settings is pinned as the **first** item (directly under the clock — reachable without scrolling), followed by `ListHeader` day-group rows (`Yesterday`/`Today`/`Tomorrow`/weekday/`MMM d`, bucketed by local-midnight from `beginMillis`) and event rows; the full-screen-intent grant appears only as a single warning row when the appop is missing. Rows are M3 buttons — active events are `FilledTonalButton` pills, **Done** rows recede to a backgroundless `ChildButton`. State is a leading text glyph (`○` ahead, `!` missed, `Zz` snoozed, `✓` done) plus strikethrough for Done — no icon-font dependency (text glyphs honor the minimize-complexity rule). The secondary label names the next tap's outcome, keeping the one-gesture cycle self-documenting. Rejected: staying on M2.5 `ScalingLazyColumn` (scales+fades but never reshapes to the curve — the look the user asked for) and hand-rolling a curved layout (the morph is a first-class M3 component; rolling our own would be accidental complexity). `Vignette` is gone — M3 has no equivalent and `ScreenScaffold` handles edge treatment. The **migration forced a version floor**: Wear Compose 1.6.2 needs `compileSdk 36`, which needs AGP 8.13.x, which needs Gradle 8.13.x.
 - **Agenda grouping + formatting is precomputed once per entries-change (`remember(entries)`), never on the render path.** `buildSections` buckets by day and pre-renders every per-row string (time, state line, glyph) into an immutable `DaySection`/`RowUi` model; the lazy block only emits prebuilt rows. This removes the `Calendar`/`DateFormat`/`groupBy` allocations that previously ran inside the list builder on every scroll frame — the fix for the observed scroll jank. The `AgendaEntry` domain model is unchanged; `RowUi` is a UI-local view model.
 - **Sound-test is a single tap that plays the tone once.** `SettingsScreen` plays the bundled tone once on the alarm stream (the spec's "Test sound") — no cycling state, no on-screen ✓/✗ diagnostics. The five-variant playback cycler that bisected the Xiaomi audio dead-end was a dev affordance that had leaked into the release surface; it is removed (separation-of-concerns principle). The bisection recipe survives in `specs/learnings.md` and git history; restore a `BuildConfig.DEBUG`-gated probe if the next device needs audio-path validation.

@@ -16,18 +16,19 @@ Performance is judged on **release builds only** — a `debuggable` debug build 
 
 The reminder engine becomes airtight; removes the remaining heuristics.
 
-- ☐ **Per-event lead times.** Close the existing `TODO NGH` in 00-product § Reminder lifecycle: read `WearableCalendarContract.Reminders`, fire at the earliest lead ("10 min before") instead of begin-time only.
+- ☑ **Per-event lead times.** Read `WearableCalendarContract.Reminders`, fire at the earliest lead ("10 min before") instead of begin-time only.
 - ☐ **Persist `notifiedAt` per instance.** Makes missed-detection exact (replaces the `MISSED_GRACE_MILLIS` heuristic) and lets the heads-up-only ring be bounded — closes the second `TODO NGH` in 01-architecture § Notifications.
 - ☐ Resilience tests: Doze delivery, reboot re-arm, timezone change, locale change.
 
 ## P2 — Reach without opening the app (Wear-native surfaces)
 
 - ☑ **Tile** — glanceable next-events widget: one event card (day/title/time/state glyph + `N/M`), `‹`/`›` to cycle events, **tap card to cycle reminder state** (upcoming → done → snooze → reset, full agenda parity), `Open` to launch the app. Renders from the calendar mirror + persisted state, schedules nothing on a glance; the card tap re-arms the existing alarm (user-initiated, no new wakeup). Cursor persists across glances (`TileCursorStore` + `lastClickableId`).
-- ☐ **Complication** — countdown to next event on the watch face.
+- ☑ **Complication** — countdown to next event on the watch face.
 - ☐ **Ongoing Activity** while a reminder is live.
 
 ## P3 — Interaction polish
 
+- ☑ **Snooze cycle** — repeated Snooze actions advance 5m / 10m / 30m / 1h per instance.
 - ☐ Rotary/bezel scroll + **haptics** on scroll detents and on Done/Snooze confirmation.
 - ☐ Curved text, richer empty/permission states, screen transitions.
 

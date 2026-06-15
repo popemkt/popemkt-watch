@@ -21,20 +21,36 @@ class WearCalendarSource(private val contentResolver: ContentResolver) : Calenda
                 .also { ContentUris.appendId(it, endMillis) }
                 .build()
 
+            val reminderLeads = reminderLeadMinutesByEventId()
             val results = mutableListOf<EventInstance>()
             contentResolver.query(uri, PROJECTION, null, null, null)?.use { cursor ->
                 while (cursor.moveToNext()) {
+                    val eventId = cursor.getLong(0)
                     results += EventInstance(
-                        eventId = cursor.getLong(0),
+                        eventId = eventId,
                         title = cursor.getString(1) ?: UNTITLED,
                         beginMillis = cursor.getLong(2),
                         endMillis = cursor.getLong(3),
                         allDay = cursor.getInt(4) == 1,
+                        reminderLeadMinutes = reminderLeads[eventId],
                     )
                 }
             }
             results.sortedBy { it.beginMillis }
         }
+
+    private fun reminderLeadMinutesByEventId(): Map<Long, Int> {
+        val results = mutableMapOf<Long, Int>()
+        contentResolver.query(WearableCalendarContract.Reminders.CONTENT_URI, REMINDER_PROJECTION, null, null, null)
+            ?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val eventId = cursor.getLong(0)
+                    val minutes = cursor.getInt(1)
+                    if (minutes >= 0) results[eventId] = maxOf(results[eventId] ?: 0, minutes)
+                }
+            }
+        return results
+    }
 
     private companion object {
         const val UNTITLED = "(untitled)"
@@ -44,6 +60,10 @@ class WearCalendarSource(private val contentResolver: ContentResolver) : Calenda
             CalendarContract.Instances.BEGIN,
             CalendarContract.Instances.END,
             CalendarContract.Instances.ALL_DAY,
+        )
+        val REMINDER_PROJECTION = arrayOf(
+            CalendarContract.Reminders.EVENT_ID,
+            CalendarContract.Reminders.MINUTES,
         )
     }
 }

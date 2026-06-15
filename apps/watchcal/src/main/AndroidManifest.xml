@@ -77,5 +77,23 @@
                 android:name="androidx.wear.tiles.PREVIEW"
                 android:resource="@drawable/ic_launcher_foreground" />
         </service>
+
+        <!-- Watch-face complication: read-only next-event countdown (specs/00-product § Complication) -->
+        <service
+            android:name=".complication.NextEventComplicationService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:icon="@drawable/ic_launcher_monochrome"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="300" />
+        </service>
     </application>
 </manifest>

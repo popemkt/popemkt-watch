@@ -17,6 +17,7 @@ class ArchitectureFencesTest {
     private val reminders = Layer("reminders", "com.popemkt.watchcal.reminders..")
     private val ui = Layer("ui", "com.popemkt.watchcal.ui..")
     private val tile = Layer("tile", "com.popemkt.watchcal.tile..")
+    private val complication = Layer("complication", "com.popemkt.watchcal.complication..")
 
     @Test
     fun `layer fences hold - domain is a leaf and dependencies point one way`() {
@@ -28,6 +29,7 @@ class ArchitectureFencesTest {
             // tile is a second presentation surface; it may use the lower layers but stays
             // independent of ui (the shared view model AgendaEntry lives in domain).
             tile.dependsOn(domain, calendar, reminders)
+            complication.dependsOn(domain, calendar)
         }
     }
 

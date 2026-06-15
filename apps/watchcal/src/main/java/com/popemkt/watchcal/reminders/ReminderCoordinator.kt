@@ -3,6 +3,7 @@ package com.popemkt.watchcal.reminders
 import com.popemkt.watchcal.calendar.CalendarSource
 import com.popemkt.watchcal.domain.ReminderDefaults
 import com.popemkt.watchcal.domain.ReminderPlanner
+import com.popemkt.watchcal.domain.ReminderState
 
 /**
  * The single pipeline every wakeup source funnels into
@@ -44,8 +45,17 @@ class ReminderCoordinator(
 
     suspend fun snooze(instanceKey: String) {
         notifier.cancel(instanceKey)
-        stateStore.markSnoozed(instanceKey, clock() + settingsStore.snoozeIntervalMillis())
+        val presetIndex = snoozePresetIndex(stateStore.states()[instanceKey])
+        val intervalMillis = ReminderDefaults.SNOOZE_PRESET_MILLIS[presetIndex]
+        stateStore.markSnoozed(instanceKey, clock() + intervalMillis, presetIndex)
         refresh()
+    }
+
+    private suspend fun snoozePresetIndex(state: ReminderState?): Int {
+        if (state is ReminderState.Snoozed && state.presetIndex != null) {
+            return ReminderDefaults.nextSnoozePresetIndex(state.presetIndex)
+        }
+        return ReminderDefaults.snoozePresetIndexFor(settingsStore.snoozeIntervalMillis())
     }
 
     suspend fun markDone(instanceKey: String) {
@@ -54,7 +64,7 @@ class ReminderCoordinator(
         refresh()
     }
 
-    /** Back to Upcoming: fires at event start again, or immediately if start already passed. */
+    /** Back to Upcoming: fires at the event trigger again, or is missed if the trigger already passed. */
     suspend fun reset(instanceKey: String) {
         notifier.cancel(instanceKey)
         stateStore.clear(instanceKey)

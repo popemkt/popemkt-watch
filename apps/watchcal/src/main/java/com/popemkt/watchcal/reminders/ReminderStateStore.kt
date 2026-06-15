@@ -27,8 +27,8 @@ class ReminderStateStore(private val context: Context) {
 
     suspend fun markDone(instanceKey: String) = put(instanceKey, VALUE_DONE)
 
-    suspend fun markSnoozed(instanceKey: String, untilMillis: Long) =
-        put(instanceKey, "$VALUE_SNOOZED:$untilMillis")
+    suspend fun markSnoozed(instanceKey: String, untilMillis: Long, presetIndex: Int) =
+        put(instanceKey, "$VALUE_SNOOZED:$untilMillis:$presetIndex")
 
     /** Back to Upcoming — absence is the upcoming state. */
     suspend fun clear(instanceKey: String) {
@@ -50,8 +50,12 @@ class ReminderStateStore(private val context: Context) {
 
     private fun decode(value: String): ReminderState? = when {
         value == VALUE_DONE -> ReminderState.Done
-        value.startsWith("$VALUE_SNOOZED:") ->
-            value.substringAfter(':').toLongOrNull()?.let { ReminderState.Snoozed(it) }
+        value.startsWith("$VALUE_SNOOZED:") -> {
+            val parts = value.split(':')
+            val untilMillis = parts.getOrNull(1)?.toLongOrNull()
+            val presetIndex = parts.getOrNull(2)?.toIntOrNull()
+            untilMillis?.let { ReminderState.Snoozed(it, presetIndex) }
+        }
         else -> null
     }
 

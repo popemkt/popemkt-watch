@@ -10,12 +10,18 @@ class ReminderPlannerTest {
     private val now = 1_000_000_000_000L
     private val minute = 60_000L
 
-    private fun event(id: Long, beginOffsetMinutes: Long, allDay: Boolean = false) = EventInstance(
+    private fun event(
+        id: Long,
+        beginOffsetMinutes: Long,
+        allDay: Boolean = false,
+        reminderLeadMinutes: Int? = null,
+    ) = EventInstance(
         eventId = id,
         title = "event-$id",
         beginMillis = now + beginOffsetMinutes * minute,
         endMillis = now + (beginOffsetMinutes + 30) * minute,
         allDay = allDay,
+        reminderLeadMinutes = reminderLeadMinutes,
     )
 
     @Test
@@ -23,6 +29,20 @@ class ReminderPlannerTest {
         val started = event(1, beginOffsetMinutes = 0)
         val plan = ReminderPlanner.plan(listOf(started), emptyMap(), now)
         assertEquals(listOf(started), plan.due)
+    }
+
+    @Test
+    fun `reminder fires at earliest event lead time before start`() {
+        val startsInThirty = event(1, beginOffsetMinutes = 30, reminderLeadMinutes = 30)
+        val plan = ReminderPlanner.plan(listOf(startsInThirty), emptyMap(), now)
+        assertEquals(listOf(startsInThirty), plan.due)
+    }
+
+    @Test
+    fun `event with lead does not wait until start to schedule`() {
+        val startsInThirty = event(1, beginOffsetMinutes = 30, reminderLeadMinutes = 10)
+        val plan = ReminderPlanner.plan(listOf(startsInThirty), emptyMap(), now)
+        assertEquals(now + 20 * minute, plan.nextWakeMillis)
     }
 
     @Test

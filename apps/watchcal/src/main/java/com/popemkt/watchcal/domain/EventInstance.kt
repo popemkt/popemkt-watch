@@ -11,6 +11,15 @@ data class EventInstance(
     val beginMillis: Long,
     val endMillis: Long,
     val allDay: Boolean,
+    val reminderLeadMinutes: Int? = null,
 ) {
     val instanceKey: String = "$eventId:$beginMillis"
+    val triggerAtMillis: Long = reminderLeadMinutes
+        ?.takeIf { it >= 0 }
+        ?.let { beginMillis - it * MILLIS_PER_MINUTE }
+        ?: beginMillis
+
+    private companion object {
+        const val MILLIS_PER_MINUTE = 60_000L
+    }
 }

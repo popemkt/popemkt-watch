@@ -6,8 +6,8 @@ WatchCal is a **standalone Wear OS app** that replaces the stock calendar notifi
 
 A calendar event reminder on the watch should behave like a personal nag, not a fire-and-forget toast:
 
-- When an event starts, the watch notifies with two actions: **Snooze** and **Done**.
-- **Snooze** silences it for the configured interval (default **10 minutes**), then it comes back. Indefinitely.
+- When an event's reminder lead time arrives, the watch notifies with two actions: **Snooze** and **Done**.
+- **Snooze** silences it, then it comes back. Indefinitely. Snooze uses a simple cycle of presets per instance: **5 min → 10 min → 30 min → 1 hour**, then repeats while that instance keeps being snoozed. The first snooze of an instance uses the configured global interval if it matches a preset; otherwise it starts at 10 minutes.
 - **Done** dismisses it permanently — meaning *"I started / finished the task"*.
 - **Swiping the notification away is a snooze, not a dismiss.** The only escape is Done. This is the core ergonomic: you cannot accidentally lose a task.
 
@@ -25,7 +25,7 @@ A due reminder takes over like an RTOS-watch alarm, not a passive notification:
 
 ## Settings
 
-- **Snooze interval** is configurable in-app as **minutes + seconds** (default 10 min 0 s, clamped to 10 s – 60 min). One global value; applies to the next snooze, not retroactively to already-snoozed reminders.
+- **Snooze interval** is configurable in-app as **minutes + seconds** (default 10 min 0 s, clamped to 10 s – 60 min). One global value; it seeds the first snooze of an instance, not retroactively to already-snoozed reminders. Repeated snoozes of the same instance advance through the preset cycle (5 min / 10 min / 30 min / 1 hour), so a reminder can be deferred longer without opening Settings.
 - **Test sound** button: a single tap plays the bundled alert tone once on the alarm stream — verifies speaker + volume without waiting for a real reminder. (The multi-path diagnostic cycler used while bisecting the Xiaomi Watch 5 audio dead-end is dev-only and out of the release surface; see `specs/learnings.md`. On a device with no app audio output the tone is silently a no-op, by design.)
 
 ## Reminder lifecycle
@@ -40,7 +40,7 @@ UPCOMING ──(begin time reached)──► NOTIFIED ──(Done)──► DONE
 
 - State is **per instance**, keyed by `eventId:beginTime`. A recurring event's occurrences are independent: marking Monday's standup Done says nothing about Tuesday's.
 - If the event is moved on the phone, the instance key changes — the reminder resets to UPCOMING at the new time, and the stale state is pruned. This is correct: a moved event is a new commitment.
-- Reminders fire **at event start**. `TODO NGH:` canonical expectation is honoring each event's own reminder minutes (the calendar mirror exposes a Reminders table); current implementation uses begin-time only; impact: users relying on "10 min before" leads see later notifications; closes: read `WearableCalendarContract.Reminders` and use the earliest lead per instance.
+- Reminders fire at the event's **earliest mirrored reminder lead**. If Google Calendar has a 10-minute and 30-minute reminder, WatchCal fires 30 minutes before start; if no reminder rows are mirrored, it falls back to event start. Reminder leads affect only the initial UPCOMING trigger; Snooze returns use their absolute snoozed-until time. Negative or malformed lead values from the mirror are ignored.
 - **Missed events never ring.** A start-trigger is "live" only within a short grace (default **10 minutes**) of the start. If the app first sees an instance whose start passed earlier than that — a fresh install, a late phone sync, a long doze — it is **missed**: shown in the agenda (so it can be ticked Done or snoozed-to-retest) but **never auto-notified**. This is what stops a cold start from firing every event that already happened today at once. (Only Upcoming start-triggers are subject to the grace; a snooze-return always rings when due, however late.)
 - **All-day events never notify.** They appear in the agenda only.
 - An un-acted notification does not re-buzz on background refreshes; a snoozed one that comes back does buzz again.
@@ -58,7 +58,7 @@ The app screen is a minimal agenda:
   - **Missed** (start already passed, never rung) — `!` glyph; state line reads `missed → tap: done`.
   - **Snoozed** — `Zz` glyph; state line reads `snoozed til <time> → reset`.
   - **Done** — `✓` glyph, the row visibly **muted** (dimmed, title struck through) so completed items recede.
-- Tapping a row **cycles the reminder state**: upcoming/notified → **Done** (same semantics as the notification action) → **snoozed for one interval** (the undo — re-enters the nag loop and comes back) → **upcoming** (state cleared; fires at event start again if still ahead, otherwise it is simply missed). Done is therefore recoverable from the agenda; an accidental tap costs taps, never the task. The snoozed step doubles as a deliberate "ring me in N" test affordance for any event.
+- Tapping a row **cycles the reminder state**: upcoming/notified → **Done** (same semantics as the notification action) → **snoozed using the current preset cycle** (the undo — re-enters the nag loop and comes back) → **upcoming** (state cleared; fires at the event's trigger again if still ahead, otherwise it is simply missed). Done is therefore recoverable from the agenda; an accidental tap costs taps, never the task. The snoozed step doubles as a deliberate "ring me later" test affordance for any event.
 - The state line **names the next tap's outcome** (`tap: done`, `done → snooze`, `snoozed → reset`) so the one gesture is never a mystery.
 - When the mirror is empty, the screen says so plainly (`Nothing in the mirror`) rather than showing a blank list.
 - **Settings** is reached from a `⚙` gear chip pinned at the **top** of the agenda (directly under the clock) — reachable the instant the app opens, no scrolling. All-day events never carry a reminder and are shown for context only.
@@ -75,6 +75,17 @@ A swipe away from the watch face, WatchCal offers a **tile** — a glanceable wi
 - When nothing is ahead, the tile says `Nothing ahead`. Before calendar access is granted, it says so and the whole tile taps through to the app to grant.
 - The tile **schedules nothing on its own and adds no periodic wakeup** — it renders from the same calendar mirror and persisted reminder state the app does. The only writes are **user-initiated**: a card tap routes through the same reminder action the agenda and the notification buttons use (which re-arms the single existing alarm — not a new wakeup source).
 
+## Complication
+
+WatchCal also provides a watch-face complication data source:
+
+- The complication shows the next non-all-day event from now onward.
+- In short-text slots it uses a compact countdown as the primary text (`12m`, `2h`, `Now`) and the event title as the optional title where the watch face supports it.
+- Tapping the complication opens WatchCal's agenda.
+- It is read-only: no Done/Snooze actions from the complication. Actions remain in notifications, the alarm screen, agenda rows, and the tile card where the hit targets are large enough.
+- It does not schedule app-owned wakeups. The watch face/system asks for updates on the platform complication cadence; WatchCal answers by reading the calendar mirror and state.
+- If calendar permission is missing, the complication says `Open` and taps through to the app. If no event is ahead, it says `None`.
+
 ## Sync
 
 The user never configures accounts in WatchCal. Wear OS already mirrors the phone calendar to the watch; WatchCal reads that mirror. Consequences the user observes:
@@ -88,7 +99,7 @@ The user never configures accounts in WatchCal. Wear OS already mirrors the phon
 Explicit exclusions — out-of-scope is first-class:
 
 - No event creation/editing, no phone companion app.
-- No per-event snooze intervals or custom leads (one global snooze interval, configurable in Settings).
-- No tiles or complications yet (planned next ergonomics, after the loop proves itself).
+- No per-event snooze intervals or custom app-local leads. WatchCal honors reminder leads already present in the OS calendar mirror.
+- No custom watch face. WatchCal only provides a complication data source for faces that choose it.
 - No own network sync, no Google Calendar API, no OAuth.
 - No month/week browsing — 48h agenda only.

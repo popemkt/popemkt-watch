@@ -20,6 +20,7 @@ calendar   → domain
 reminders  → domain, calendar
 ui         → domain, calendar, reminders     (presentation surface)
 tile       → domain, calendar, reminders     (presentation surface; does not import ui)
+complication → domain, calendar              (presentation surface; read-only data source)
 App.kt     → anything         (composition root, outside the layer set)
 ```
 

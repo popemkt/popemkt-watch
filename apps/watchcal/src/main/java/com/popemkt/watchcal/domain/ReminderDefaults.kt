@@ -6,6 +6,12 @@ object ReminderDefaults {
     val SNOOZE_INTERVAL_MILLIS: Long = TimeUnit.MINUTES.toMillis(10)
     val SNOOZE_INTERVAL_MIN_MILLIS: Long = TimeUnit.SECONDS.toMillis(10)
     val SNOOZE_INTERVAL_MAX_MILLIS: Long = TimeUnit.MINUTES.toMillis(60)
+    val SNOOZE_PRESET_MILLIS: List<Long> = listOf(
+        TimeUnit.MINUTES.toMillis(5),
+        TimeUnit.MINUTES.toMillis(10),
+        TimeUnit.MINUTES.toMillis(30),
+        TimeUnit.HOURS.toMillis(1),
+    )
 
     /** Forward horizon the firing pipeline scans to find the next wake (refresh only). */
     val SCHEDULING_FORWARD_MILLIS: Long = TimeUnit.HOURS.toMillis(48)
@@ -27,4 +33,11 @@ object ReminderDefaults {
 
     fun clampSnoozeInterval(millis: Long): Long =
         millis.coerceIn(SNOOZE_INTERVAL_MIN_MILLIS, SNOOZE_INTERVAL_MAX_MILLIS)
+
+    fun snoozePresetIndexFor(millis: Long): Int =
+        SNOOZE_PRESET_MILLIS.indexOf(millis).takeIf { it >= 0 }
+            ?: SNOOZE_PRESET_MILLIS.indexOf(SNOOZE_INTERVAL_MILLIS)
+
+    fun nextSnoozePresetIndex(currentIndex: Int, presetCount: Int = SNOOZE_PRESET_MILLIS.size): Int =
+        (currentIndex + 1) % presetCount
 }

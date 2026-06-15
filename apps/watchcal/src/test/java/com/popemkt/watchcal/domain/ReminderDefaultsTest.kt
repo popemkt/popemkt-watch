@@ -20,4 +20,20 @@ class ReminderDefaultsTest {
     fun `a sane interval passes through unchanged`() {
         assertEquals(90_000L, ReminderDefaults.clampSnoozeInterval(90_000L))
     }
+
+    @Test
+    fun `configured 10 minute snooze seeds the preset cycle`() {
+        assertEquals(1, ReminderDefaults.snoozePresetIndexFor(600_000L))
+    }
+
+    @Test
+    fun `custom snooze interval falls back to 10 minute preset`() {
+        assertEquals(1, ReminderDefaults.snoozePresetIndexFor(90_000L))
+    }
+
+    @Test
+    fun `snooze preset cycle wraps after one hour`() {
+        assertEquals(2, ReminderDefaults.nextSnoozePresetIndex(1))
+        assertEquals(0, ReminderDefaults.nextSnoozePresetIndex(3))
+    }
 }

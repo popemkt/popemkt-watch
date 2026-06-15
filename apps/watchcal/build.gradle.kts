@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.wear.protolayout)
     implementation(libs.androidx.wear.protolayout.material)
     implementation(libs.androidx.wear.protolayout.material3)
+    implementation(libs.androidx.watchface.complications.data.source.ktx)
     implementation(libs.androidx.concurrent.futures)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)

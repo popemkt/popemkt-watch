@@ -25,7 +25,7 @@ object ReminderPlanner {
                 when (val state = states[instance.instanceKey] ?: ReminderState.Upcoming) {
                     ReminderState.Done -> null
                     // A start-trigger is "live" only near its time; a snooze-return always fires.
-                    ReminderState.Upcoming -> Trigger(instance, instance.beginMillis, fromStart = true)
+                    ReminderState.Upcoming -> Trigger(instance, instance.triggerAtMillis, fromStart = true)
                     is ReminderState.Snoozed -> Trigger(instance, state.untilMillis, fromStart = false)
                 }
             }

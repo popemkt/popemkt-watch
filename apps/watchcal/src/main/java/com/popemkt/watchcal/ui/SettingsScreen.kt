@@ -72,7 +72,7 @@ fun SettingsScreen(snoozeIntervalMillis: Long, onIntervalChange: (Long) -> Unit)
             }
             item(key = "summary") {
                 Text(
-                    "Comes back every $minutes m $seconds s",
+                    "First snooze: $minutes m $seconds s",
                     style = MaterialTheme.typography.bodyExtraSmall,
                     textAlign = TextAlign.Center,
                 )
