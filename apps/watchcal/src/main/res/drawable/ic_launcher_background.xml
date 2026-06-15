@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Full-bleed background fill for the adaptive icon; Wear masks it to a circle. -->
+<!--
+  Full-bleed adaptive-icon background; the launcher masks it to a circle on Wear.
+  A radial teal gradient (light upper-left → deep lower-right) gives the masked
+  circle a subtle orb-like depth instead of a flat fill.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="@color/ic_launcher_background"
-        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+    <path android:pathData="M0,0 L108,0 L108,108 L0,108 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="42"
+                android:centerY="38"
+                android:gradientRadius="82"
+                android:startColor="#17A78C"
+                android:endColor="#0A5343" />
+        </aapt:attr>
+    </path>
 </vector>

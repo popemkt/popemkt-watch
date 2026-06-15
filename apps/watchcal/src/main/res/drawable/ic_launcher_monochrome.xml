@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Monochrome layer for themed icons. The system ignores color and tints the
+  shape, so this is single-color line-art (calendar outline + tabs + check)
+  rather than the multicolor foreground — a clean silhouette when tinted.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Binder tabs -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M43.5,27 L43.5,33" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M64.5,27 L64.5,33" />
+
+    <!-- Calendar page outline -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round"
+        android:pathData="M35,32 L73,32 A7,7 0 0 1 80,39 L80,75 A7,7 0 0 1 73,82 L35,82 A7,7 0 0 1 28,75 L28,39 A7,7 0 0 1 35,32 Z" />
+
+    <!-- Header divider -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M30,46 L78,46" />
+
+    <!-- Checkmark -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M40,62 L49,71 L70,51" />
+</vector>

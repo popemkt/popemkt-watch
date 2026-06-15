@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  WatchCal launcher foreground: a calendar page with binder rings and an
-  alarm dot. Drawn inside the adaptive-icon 108dp viewport; all strokes sit
-  within the central ~66dp safe zone so the circular Wear mask never clips it.
+  WatchCal launcher foreground: a bold calendar page with a strong checkmark —
+  "calendar reminders, done" (the ✓ is the app's signature mark-done gesture).
+  Deliberately simple and heavy-stroked so it survives downscaling to the tiny
+  Wear launcher size. All marks sit within the central ~66dp safe zone of the
+  108dp viewport so the circular Wear mask never clips them.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -10,40 +12,29 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Binder rings poking above the calendar header -->
+    <!-- Binder tabs poking above the page (drawn first so the page overlaps them) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M42,28 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
+        android:pathData="M41,26.5 A2.5,2.5 0 0 1 46,26.5 L46,34 L41,34 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M66,28 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
+        android:pathData="M62,26.5 A2.5,2.5 0 0 1 67,26.5 L67,34 L62,34 Z" />
 
-    <!-- Calendar body (rounded page) -->
+    <!-- Calendar page (rounded, white) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M36,32 L72,32 A6,6 0 0,1 78,38 L78,76 A6,6 0 0,1 72,82 L36,82 A6,6 0 0,1 30,76 L30,38 A6,6 0 0,1 36,32 Z" />
+        android:pathData="M35,32 L73,32 A7,7 0 0 1 80,39 L80,75 A7,7 0 0 1 73,82 L35,82 A7,7 0 0 1 28,75 L28,39 A7,7 0 0 1 35,32 Z" />
 
     <!-- Header band -->
     <path
         android:fillColor="#0E7C66"
-        android:pathData="M30,38 A6,6 0 0,1 36,32 L72,32 A6,6 0 0,1 78,38 L78,46 L30,46 Z" />
+        android:pathData="M28,39 A7,7 0 0 1 35,32 L73,32 A7,7 0 0 1 80,39 L80,46 L28,46 Z" />
 
-    <!-- Alarm clock face on the page -->
+    <!-- Bold checkmark on the page -->
     <path
-        android:fillColor="#0E7C66"
-        android:pathData="M54,66 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,66 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 z" />
-    <!-- Clock hands -->
-    <path
-        android:strokeColor="#0E7C66"
-        android:strokeWidth="2"
+        android:strokeColor="#12A085"
+        android:strokeWidth="7"
         android:strokeLineCap="round"
-        android:pathData="M54,66 L54,60" />
-    <path
-        android:strokeColor="#0E7C66"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:pathData="M54,66 L59,68" />
+        android:strokeLineJoin="round"
+        android:pathData="M39,62 L49,72 L71,50" />
 </vector>
