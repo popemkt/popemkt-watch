@@ -41,8 +41,8 @@ Every wakeup source funnels into a single idempotent operation, `ReminderCoordin
  AlarmReceiver ─┐
  BootReceiver ──┤
  SyncWorker ────┼──► ReminderCoordinator.refresh()
- app open ──────┤        1. read scheduling window (now−6h … now+48h) from CalendarSource
- Snooze/Done ───┘        2. prune stale reminder state (keys no longer in window)
+ app open ──────┤        1. prune reminder state to the agenda window's keys (display horizon)
+ Snooze/Done ───┘        2. read firing window (now−6h … now+48h) from CalendarSource
                          3. ReminderPlanner.plan(instances, states, now)   ← pure function
                          4. notify all due instances
                          5. schedule ONE exact alarm at plan.nextWakeMillis
@@ -50,7 +50,7 @@ Every wakeup source funnels into a single idempotent operation, `ReminderCoordin
 
 `ReminderPlanner` is a pure function `(instances, states, now) → Plan(due, nextWakeMillis)` — the entire reminder semantics of `00-product.md` lives there, tested without Android. A start-trigger counts as **due** only while `now − beginMillis ≤ MISSED_GRACE_MILLIS` (10 min); older start-triggers are *missed* (never returned in `due`, and being `≤ now` they schedule no wake). A snooze-return has no grace — it fires whenever its `untilMillis` is reached. This is the design-level fix for the cold-start blast: an empty state store no longer turns every already-started event of the day into a notification.
 
-Note the **two distinct windows**: the firing pipeline above scans `now−6h … now+SCHEDULING_FORWARD_MILLIS` (48h) just to decide what is due and when to wake; the **agenda UI** reads a far wider `now−AGENDA_LOOKBACK_MILLIS … now+AGENDA_FORWARD_MILLIS` (≈ the whole mirror, past included) purely for display. Display reach and firing reach are deliberately decoupled.
+Note the **two distinct windows**: the firing scan (`firingInstances`) reads `now−6h … now+SCHEDULING_FORWARD_MILLIS` (48h) just to decide what is due and when to wake; the **agenda UI** reads a far wider `now−AGENDA_LOOKBACK_MILLIS … now+AGENDA_FORWARD_MILLIS` (≈ the whole mirror, past included) purely for display. Display reach and firing reach are deliberately decoupled. **Pruning follows the display window, not the firing window** (`actionableKeys`): state is only garbage-collected once an event leaves the agenda entirely. Pruning over the narrower firing window was a bug — it orphaned the `done`/`snoozed` state a user had just set on a missed event (6h–2d old) or a far-future event (>48h out), which silently reverted on the very next refresh, so the agenda tap (and the tile tap) appeared dead on exactly those rows.
 
 ## Battery design (the wakeup budget)
 

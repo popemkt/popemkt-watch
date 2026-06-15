@@ -20,13 +20,27 @@ class ReminderCoordinator(
 
     suspend fun refresh() {
         val now = clock()
-        val instances =
-            calendarSource.instances(now - PAST_GRACE_MILLIS, now + ReminderDefaults.SCHEDULING_FORWARD_MILLIS)
-        stateStore.prune(instances.map { it.instanceKey }.toSet())
-        val plan = ReminderPlanner.plan(instances, stateStore.states(), now)
+        stateStore.prune(actionableKeys(now))
+        val plan = ReminderPlanner.plan(firingInstances(now), stateStore.states(), now)
         plan.due.forEach(notifier::show)
         alarmScheduler.scheduleNext(plan.nextWakeMillis)
     }
+
+    /**
+     * Keys for everything the agenda can still *show and act on* — the prune retention horizon.
+     * Pruning over the narrower firing window would orphan state the user just wrote on a missed
+     * or far-future event still visible in the agenda (it would silently revert on the next
+     * refresh). Retention follows the display window, not the firing window.
+     */
+    private suspend fun actionableKeys(now: Long): Set<String> =
+        calendarSource
+            .instances(now - ReminderDefaults.AGENDA_LOOKBACK_MILLIS, now + ReminderDefaults.AGENDA_FORWARD_MILLIS)
+            .map { it.instanceKey }
+            .toSet()
+
+    /** The near window the planner scans to decide what is due now and when to wake next. */
+    private suspend fun firingInstances(now: Long) =
+        calendarSource.instances(now - PAST_GRACE_MILLIS, now + ReminderDefaults.SCHEDULING_FORWARD_MILLIS)
 
     suspend fun snooze(instanceKey: String) {
         notifier.cancel(instanceKey)
