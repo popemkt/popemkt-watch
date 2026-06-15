@@ -10,7 +10,7 @@ plugins {
 // release build so ART pre-compiles them (JIT-free startup + scroll).
 android {
     namespace = "com.popemkt.watchcal.baselineprofile"
-    compileSdk = 35
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

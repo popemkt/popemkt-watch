@@ -51,6 +51,7 @@ The app screen is a minimal agenda:
 
 - Shows **the whole calendar mirror** the watch holds — roughly a day or two back through a week forward — soonest order, **past included**. Earlier-today and yesterday's events stay visible so a Done or missed item can still be seen and acted on. (The agenda's reach is independent of the narrower window the firing pipeline scans for the next wake.)
 - The current time of day is always visible (the Wear curved clock at the top of the screen).
+- The list **fits the round display**: rows scale and morph to the screen's curve as they reach the top and bottom edges, the same edge-hugging motion as Google's own Wear apps — content stays centered and legible, nothing clipped square against a circular screen.
 - Rows are **grouped under day headers** — `Yesterday`, `Today`, `Tomorrow`, then weekday names, then dates (`MMM d`) for anything further out.
 - Each row carries a **state glyph**, the title, the start time, and a state line:
   - **Upcoming, still ahead** — neutral glyph (`○`); state line is the lead context (`tap: done`, or `all day` for all-day events).

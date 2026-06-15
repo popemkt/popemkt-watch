@@ -5,36 +5,32 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
-import androidx.wear.compose.material.Button
-import androidx.wear.compose.material.ButtonDefaults
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.ListHeader
-import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.Scaffold
-import androidx.wear.compose.material.Text
-import androidx.wear.compose.material.TimeText
-import androidx.wear.compose.material.Vignette
-import androidx.wear.compose.material.VignettePosition
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
+import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.FilledTonalIconButton
+import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import com.popemkt.watchcal.R
 import com.popemkt.watchcal.domain.ReminderDefaults
 import java.util.concurrent.TimeUnit
 
 /**
- * Snooze-interval editor (specs/00-product.md § Settings): minutes + seconds
- * steppers over one global value, clamped by the domain rule on every change,
- * plus a one-tap test of the bundled alert tone.
+ * Snooze-interval editor (specs/00-product.md § Settings): minutes + seconds steppers over one
+ * global value, clamped by the domain rule on every change, plus a one-tap test of the bundled
+ * alert tone. Material 3 [TransformingLazyColumn] so the content morphs to the round display.
  */
 @Composable
 fun SettingsScreen(snoozeIntervalMillis: Long, onIntervalChange: (Long) -> Unit) {
@@ -49,50 +45,58 @@ fun SettingsScreen(snoozeIntervalMillis: Long, onIntervalChange: (Long) -> Unit)
         )
     }
 
-    val listState = rememberScalingLazyListState()
-    Scaffold(
-        timeText = { TimeText() },
-        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
-    ) {
-        ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            item { ListHeader { Text("Settings") } }
-            item { Text("Snooze interval", style = MaterialTheme.typography.title3) }
-            item {
+    val columnState = rememberTransformingLazyColumnState()
+    val spec = rememberTransformationSpec()
+    ScreenScaffold(scrollState = columnState) { contentPadding ->
+        TransformingLazyColumn(state = columnState, contentPadding = contentPadding) {
+            item(key = "header") {
+                ListHeader(
+                    modifier = Modifier.transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                ) { Text("Settings") }
+            }
+            item(key = "title") { Text("Snooze interval", style = MaterialTheme.typography.titleMedium) }
+            item(key = "min") {
                 StepperRow(
                     label = "$minutes min",
                     onDecrement = { update(minutes - 1, seconds) },
                     onIncrement = { update(minutes + 1, seconds) },
                 )
             }
-            item {
+            item(key = "sec") {
                 StepperRow(
                     label = "$seconds sec",
                     onDecrement = { update(minutes, seconds - SECONDS_STEP) },
                     onIncrement = { update(minutes, seconds + SECONDS_STEP) },
                 )
             }
-            item {
+            item(key = "summary") {
                 Text(
                     "Comes back every $minutes m $seconds s",
-                    style = MaterialTheme.typography.caption2,
+                    style = MaterialTheme.typography.bodyExtraSmall,
                     textAlign = TextAlign.Center,
                 )
             }
-            item { TestSoundChip() }
+            item(key = "test") {
+                TestSoundChip(
+                    Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    SurfaceTransformation(spec),
+                )
+            }
         }
     }
 }
 
 /** Plays the bundled alert tone once on the alarm stream (a no-op where the OEM exposes no app audio output). */
 @Composable
-private fun TestSoundChip() {
+private fun TestSoundChip(modifier: Modifier, transformation: SurfaceTransformation) {
     val context = LocalContext.current
-    Chip(
-        modifier = Modifier.fillMaxWidth(),
-        colors = ChipDefaults.secondaryChipColors(),
-        icon = { Text("♪", style = MaterialTheme.typography.title3) },
-        label = { Text("Test sound") },
+    FilledTonalButton(
         onClick = { playAlarmTone(context) },
+        modifier = modifier,
+        transformation = transformation,
+        label = { Text("Test sound") },
+        icon = { Text("♪", style = MaterialTheme.typography.titleMedium) },
     )
 }
 
@@ -114,15 +118,9 @@ private fun StepperRow(label: String, onDecrement: () -> Unit, onIncrement: () -
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Button(
-            onClick = onDecrement,
-            modifier = Modifier.size(ButtonDefaults.SmallButtonSize),
-        ) { Text("−") }
-        Text(label, style = MaterialTheme.typography.body1)
-        Button(
-            onClick = onIncrement,
-            modifier = Modifier.size(ButtonDefaults.SmallButtonSize),
-        ) { Text("+") }
+        FilledTonalIconButton(onClick = onDecrement) { Text("−") }
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        FilledTonalIconButton(onClick = onIncrement) { Text("+") }
     }
 }
 

@@ -24,6 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.MaterialTheme
 import com.popemkt.watchcal.App
 import com.popemkt.watchcal.domain.AgendaEntry
 import com.popemkt.watchcal.domain.ReminderDefaults
@@ -35,7 +37,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as App
-        setContent { WatchCalRoot(app) }
+        setContent { MaterialTheme { AppScaffold { WatchCalRoot(app) } } }
     }
 }
 
