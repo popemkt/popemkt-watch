@@ -18,7 +18,8 @@ Principle: *Minimizing accidental complexity*, one principle at four radii — *
 domain     → (nothing)        pure Kotlin leaf; no Android imports either
 calendar   → domain
 reminders  → domain, calendar
-ui         → domain, calendar, reminders
+ui         → domain, calendar, reminders     (presentation surface)
+tile       → domain, calendar, reminders     (presentation surface; does not import ui)
 App.kt     → anything         (composition root, outside the layer set)
 ```
 

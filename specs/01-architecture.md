@@ -22,15 +22,16 @@ New apps are added by `include(":apps:<name>")` in `settings.gradle.kts`. Cross-
 
 ```text
 apps/watchcal/src/main/java/com/popemkt/watchcal/
-  domain/      EventInstance, ReminderState, ReminderPlanner, ReminderDefaults   (leaf — pure Kotlin, no Android)
+  domain/      EventInstance, ReminderState, AgendaEntry, ReminderPlanner, ReminderDefaults   (leaf — pure Kotlin, no Android)
   calendar/    CalendarSource (interface) + WearCalendarSource (mirror reader)
   reminders/   ReminderStateStore, ReminderSettingsStore, ReminderCoordinator,
                AlarmScheduler, ReminderNotifier, receivers, SyncWorker
   ui/          MainActivity, AgendaScreen, SettingsScreen, AlarmActivity, AlarmVibrator
+  tile/        AgendaTileService, AgendaTileRenderer, TileCursorStore   (Wear tile surface)
   App.kt       composition root — builds the object graph, owns channel + periodic worker
 ```
 
-Layer fences (enforced by Konsist, see [`02-code-unit-cohesion.md`](./02-code-unit-cohesion.md)): `domain` imports no other layer; `calendar` may import `domain`; `reminders` may import `domain` + `calendar`; `ui` may import all. `App.kt` (root) is the only place concrete implementations are wired together.
+Layer fences (enforced by Konsist, see [`02-code-unit-cohesion.md`](./02-code-unit-cohesion.md)): `domain` imports no other layer; `calendar` may import `domain`; `reminders` may import `domain` + `calendar`; `ui` and `tile` may import `domain` + `calendar` + `reminders` (the two presentation surfaces; neither imports the other). `App.kt` (root) is the only place concrete implementations are wired together.
 
 ## Data flow — one pipeline, one entrypoint
 
@@ -103,6 +104,25 @@ Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEE
 | `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK` | reboot re-arm; receiver work | |
 | `USE_FULL_SCREEN_INTENT` | launch `AlarmActivity` from a due notification | manifest permission granted at install, **but** API 34+ gates it behind an appop that defaults to deny for non-store apps. `MainActivity` checks `NotificationManager.canUseFullScreenIntent()` and offers a deep link to `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`; denied = graceful degrade to heads-up |
 | `VIBRATE` | alarm vibration loop | |
+| `com.google.android.wearable.permission.BIND_TILE_PROVIDER` | system binds the tile service | declared on the `<service>`, held by the system |
+
+## Tile surface (the watch widget)
+
+`tile/` is a second presentation surface, parallel to `ui/` and equally subordinate to the layers below it (same fence rights, no cross-import between the two).
+
+```text
+ system tile host ──► AgendaTileService.onTileRequest(req)
+                         1. permission gate (READ_CALENDAR) — ungranted ⇒ "grant" card
+                         2. read forward window from CalendarSource (now … now+AGENDA_FORWARD)   ← read-only
+                         3. read persisted ReminderState (stateStore)                            ← no refresh()
+                         4. resolve cursor: TileCursorStore + req.currentState.lastClickableId
+                            (prev/next step ±1, clamped to the live list)
+                         5. AgendaTileRenderer → ProtoLayout (one event card + ‹ › + Open)
+```
+
+- **Read-only and wakeup-free by contract.** The tile never calls `ReminderCoordinator.refresh()` (which schedules alarms and notifies) — it renders purely from the calendar mirror and persisted state. This is what lets P2 surfaces add **zero** to the wakeup budget (battery rule); a tile request is just two reads.
+- **Cursor via `lastClickableId` + a one-int DataStore (`TileCursorStore`).** Each `‹`/`›` is a `Clickable` carrying a `LoadAction` and an id; on the reload, `State.getLastClickableId()` says which was tapped, the cursor is stepped and persisted, then clamped to the current list length. Chosen over ProtoLayout dynamic-state expressions: a persisted cursor survives across glances (returns you where you were) and the API surface is far smaller. The `Open` chip is a `LaunchAction` to `MainActivity` (referenced by class-name string, not import, so `tile` stays decoupled from `ui`).
+- **Material stack:** classic `androidx.wear.protolayout:protolayout-material` (`Text`/`Button`/`CompactChip`/`PrimaryLayout`), not `protolayout-material3` (still pre-stable, churning API). Futures bridged with `androidx.concurrent.futures.ResolvableFuture` (the tiny `androidx.concurrent:concurrent-futures` artifact — the tiles classpath ships only the guava `ListenableFuture` stub, no settable impl) — no coroutine-future dependency.
 
 ## Toolchain
 
@@ -136,6 +156,7 @@ Builds run with `JAVA_HOME=.tooling/jdk-21/Contents/Home` when the system JDK is
 - **One alarm, re-armed, instead of one alarm per event.** Rejected: scheduling N alarms per sync. The chain (`fire → refresh → schedule next`) keeps AlarmManager state trivially small, makes the wakeup budget auditable, and self-heals: every fire re-reads the world.
 - **Instance key = `eventId:beginMillis`.** A moved event gets a fresh key (reminder resets — desired), recurring occurrences are independent (required by spec). Rejected: `Instances._ID` (opaque, can change across mirror resyncs).
 - **Swipe-away routes to snooze.** The notification `deleteIntent` is the snooze intent. Rejected: treating swipe as dismiss (breaks the core "cannot accidentally lose a task" ergonomic) and `setOngoing` (user hostile, fights the system UI).
+- **Tile renders, never acts.** The widget shows what's next and cycles through it, but Done/Snooze stay in the app + alarm notification. Rejected for MVP: action buttons on the tile — they would need either a wakeup-capable path or careful state-write-then-refresh plumbing, against the read-only/zero-wakeup contract that makes P2 surfaces free. Revisit if a glanceable Done proves worth the plumbing (it can write state + `requestUpdate` without scheduling).
 - **Manual object graph over Hilt.** One module, ~6 collaborators; a DI framework would be accidental complexity. The boundary radius is still honored: consumers depend on `CalendarSource` (interface), wiring happens only in `App`. Revisit when a second module appears.
 - **Preferences DataStore over Room.** The state is a small flat map with O(window) size; a relational store buys nothing. Revisit if per-instance history or queries appear.
 - **Insistent notification for the ring, full-screen intent for the takeover.** First implementation put the ring inside `AlarmActivity` (via FSI); on-device testing showed the system frequently downgrades FSI to heads-up (ambient/AOD counts as screen-on, e.g. while charging) — leaving the alert silent. The ring now lives on the notification (`FLAG_INSISTENT` + channel sound on the alarm stream), which sounds in every presentation; FSI remains for the screen takeover when allowed. Rejected: a foreground service ringer (battery rule; more moving parts) and forcing the takeover from the background (the OS forbids it — FSI *is* the sanctioned path).

@@ -30,6 +30,7 @@ import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.Vignette
 import androidx.wear.compose.material.VignettePosition
+import com.popemkt.watchcal.domain.AgendaEntry
 import com.popemkt.watchcal.domain.ReminderState
 import java.util.Calendar
 import java.util.Date

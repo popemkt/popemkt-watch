@@ -62,6 +62,17 @@ The app screen is a minimal agenda:
 - When the mirror is empty, the screen says so plainly (`Nothing in the mirror`) rather than showing a blank list.
 - **Settings** is reached from a `⚙` gear chip pinned at the **top** of the agenda (directly under the clock) — reachable the instant the app opens, no scrolling. All-day events never carry a reminder and are shown for context only.
 
+## Tile (watch widget)
+
+A swipe away from the watch face, WatchCal offers a **tile** — a glanceable widget for the calendar without opening the app:
+
+- Shows **one event at a time**: its day label (`Today`/`Tomorrow`/weekday/date), title, start time (or `all day`), and a position counter (`2 / 5`). Done/snoozed events carry the same state glyph (`✓`/`Zz`) the agenda uses.
+- The tile is **forward-looking**: it cycles the events from now onward (anything not yet ended), soonest first. Past/missed items live in the app, not the glance.
+- **Cycle with `‹` / `›`** buttons — step to the previous / next event in place. The tile **remembers the cursor** between glances, so you return to where you left off; it clamps back into range when the calendar shifts under it.
+- An **`Open`** chip launches the full app (at the agenda) for actions and history.
+- When nothing is ahead, the tile says `Nothing ahead`. Before calendar access is granted, it says so and the whole tile taps through to the app to grant.
+- The tile is **read-only and passive**: it never fires reminders, schedules nothing, and adds no wakeups — it renders from the same calendar mirror and persisted reminder state the app does. (Acting on a reminder — Done/Snooze — stays in the app and the alarm notification; the tile is for *seeing* what's next.)
+
 ## Sync
 
 The user never configures accounts in WatchCal. Wear OS already mirrors the phone calendar to the watch; WatchCal reads that mirror. Consequences the user observes:

@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.popemkt.watchcal.App
+import com.popemkt.watchcal.domain.AgendaEntry
 import com.popemkt.watchcal.domain.ReminderDefaults
 import com.popemkt.watchcal.domain.ReminderState
 import kotlinx.coroutines.launch
