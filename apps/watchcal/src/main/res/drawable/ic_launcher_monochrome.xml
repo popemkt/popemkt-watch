@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Monochrome layer for themed icons. The system ignores color and tints the
-  shape, so this is single-color line-art (calendar outline + tabs + check)
+  shape, so this is single-color line-art (calendar outline + tabs + "P" + check)
   rather than the multicolor foreground — a clean silhouette when tinted.
+  Geometry matches ic_launcher_foreground (within the radius-33 safe zone).
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -15,25 +16,33 @@
         android:strokeColor="#FFFFFF"
         android:strokeWidth="4"
         android:strokeLineCap="round"
-        android:pathData="M43.5,27 L43.5,33" />
+        android:pathData="M47.8,31 L47.8,35" />
     <path
         android:strokeColor="#FFFFFF"
         android:strokeWidth="4"
         android:strokeLineCap="round"
-        android:pathData="M64.5,27 L64.5,33" />
+        android:pathData="M60.2,31 L60.2,35" />
 
     <!-- Calendar page outline -->
     <path
         android:strokeColor="#FFFFFF"
         android:strokeWidth="5"
         android:strokeLineJoin="round"
-        android:pathData="M35,32 L73,32 A7,7 0 0 1 80,39 L80,75 A7,7 0 0 1 73,82 L35,82 A7,7 0 0 1 28,75 L28,39 A7,7 0 0 1 35,32 Z" />
+        android:pathData="M40,34 L68,34 A7,7 0 0 1 75,41 L75,69 A7,7 0 0 1 68,76 L40,76 A7,7 0 0 1 33,69 L33,41 A7,7 0 0 1 40,34 Z" />
 
     <!-- Header divider -->
     <path
         android:strokeColor="#FFFFFF"
         android:strokeWidth="4"
-        android:pathData="M30,46 L78,46" />
+        android:pathData="M35,50 L73,50" />
+
+    <!-- "P" monogram -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M52,48 L52,36 L56,36 A3.2,3.2 0 0 1 56,42.4 L52,42.4" />
 
     <!-- Checkmark -->
     <path
@@ -41,5 +50,5 @@
         android:strokeWidth="6"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M40,62 L49,71 L70,51" />
+        android:pathData="M41,61 L48,68 L67,53" />
 </vector>
