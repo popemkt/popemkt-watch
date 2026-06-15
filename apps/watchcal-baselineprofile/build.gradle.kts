@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.test)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.androidx.baselineprofile)
 }
 
@@ -10,14 +9,11 @@ plugins {
 // release build so ART pre-compiles them (JIT-free startup + scroll).
 android {
     namespace = "com.popemkt.watchcal.baselineprofile"
-    compileSdk = 36
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -27,6 +23,13 @@ android {
     }
 
     targetProjectPath = ":apps:watchcal"
+}
+
+// AGP 9 built-in Kotlin: JVM target moves to the project-level Kotlin extension.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 baselineProfile {

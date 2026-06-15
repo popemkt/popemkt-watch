@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.detekt)
     alias(libs.plugins.androidx.baselineprofile)
@@ -8,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.popemkt.watchcal"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.popemkt.watchcal"
@@ -33,11 +32,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+// AGP 9 ships built-in Kotlin; the old android.kotlinOptions DSL is gone. JVM target
+// is set on the project-level Kotlin extension instead (specs/01-architecture.md § Toolchain).
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 

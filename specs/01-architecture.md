@@ -129,13 +129,13 @@ Battery note (per the battery rule): the takeover holds the screen on (`FLAG_KEE
 
 ## Toolchain
 
-- Kotlin 2.0.x, AGP 8.13.x, Gradle 8.13.x, JDK 17 toolchain target. `compileSdk 36` (required by Wear Compose 1.6.x). `TODO NGH:` AGP 9.x + Kotlin 2.4.x are a known follow-up — held back as a separate change because they are independent majors with their own breakage surface (deferring keeps this UI migration bisectable).
-- Compose for Wear OS — the **app** is on **Material 3** (`androidx.wear.compose:compose-material3` + `:compose-foundation` 1.6.x) with `TransformingLazyColumn`; the **tile** stays on classic `protolayout-material` (separate stack). `minSdk 30` (Wear OS 3), `targetSdk 34`. Legacy `compose-material` (M2.5) is still on the classpath only until any last reference is gone.
+- Kotlin 2.4.x, AGP 9.2.x, Gradle 9.5.x, JDK 17 toolchain target (compiled with the bundled JDK 21 — see `JAVA_HOME` note under Entrypoints). `compileSdk 37` (required by core-ktx 1.19 / activity-compose 1.13). **AGP 9 ships built-in Kotlin**: the standalone `org.jetbrains.kotlin.android` plugin is *removed* from every module (applying it now fails), and the JVM target moves from the old `android.kotlinOptions` DSL to the project-level `kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }`. The Compose compiler plugin (`org.jetbrains.kotlin.plugin.compose`) is still applied explicitly.
+- Compose for Wear OS — the **app** is on **Material 3** (`androidx.wear.compose:compose-material3` + `:compose-foundation` 1.6.x) with `TransformingLazyColumn`; the **tile** is on **`protolayout-material3`** (`materialScope`/`primaryLayout`, stable 1.4.0). `minSdk 30` (Wear OS 3), `targetSdk 34`. Legacy `compose-material` (M2.5) and classic `protolayout-material` remain on the classpath only until any last reference is gone.
 - `androidx.wear:wear` for `WearableCalendarContract`.
 - detekt (L2 sensors, warn-only — `config/detekt/detekt.yml`), Konsist in unit tests (L1 fences).
 - Standalone wear app: `com.google.android.wearable.standalone = true`.
 - **Release builds are R8-minified and carry a baseline profile** (`androidx.baselineprofile` + `androidx.profileinstaller`). The `release` build type is signed with the **debug key for sideload testing only** — this is *not* a distribution key; a real key must replace it before any store release. Performance is always judged on a release build (a `debuggable` build makes Compose janky on the watch CPU; specs/03-roadmap.md § P0).
-- **Baseline-profile producer module** `:apps:watchcal-baselineprofile` (`com.android.test`, `targetProjectPath = ":apps:watchcal"`) runs a startup + agenda-scroll journey to capture hot code. `useConnectedDevices = true` — generation needs a connected watch or Wear emulator.
+- **Baseline-profile producer module** `:apps:watchcal-baselineprofile` (`com.android.test`, `targetProjectPath = ":apps:watchcal"`) runs a startup + agenda-scroll journey to capture hot code. `useConnectedDevices = true` — generation needs a connected watch or Wear emulator. `TODO NGH:` benchmark/baselineprofile is pinned to `1.5.0-alpha06` — the only line that supports AGP 9 (the stable `1.4.x` rejects it with "not a supported android module"). Dev-only tooling, never in the app runtime; drop to stable once a 1.5.0 final ships.
 
 ## Entrypoints
 
