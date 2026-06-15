@@ -3,24 +3,24 @@ package com.popemkt.watchcal.tile
 import android.content.Context
 import android.text.format.DateFormat
 import androidx.wear.protolayout.ActionBuilders
-import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
 import androidx.wear.protolayout.LayoutElementBuilders.LayoutElement
-import androidx.wear.protolayout.LayoutElementBuilders.VERTICAL_ALIGN_CENTER
 import androidx.wear.protolayout.LayoutElementBuilders.Column
 import androidx.wear.protolayout.LayoutElementBuilders.Row
 import androidx.wear.protolayout.LayoutElementBuilders.Spacer
 import androidx.wear.protolayout.ModifiersBuilders.Clickable
-import androidx.wear.protolayout.ModifiersBuilders.Modifiers
-import androidx.wear.protolayout.ModifiersBuilders.Padding
-import androidx.wear.protolayout.material.Button
-import androidx.wear.protolayout.material.CompactChip
-import androidx.wear.protolayout.material.Text
-import androidx.wear.protolayout.material.Typography
-import androidx.wear.protolayout.material.layouts.PrimaryLayout
+import androidx.wear.protolayout.material3.MaterialScope
+import androidx.wear.protolayout.material3.Typography
+import androidx.wear.protolayout.material3.materialScope
+import androidx.wear.protolayout.material3.primaryLayout
+import androidx.wear.protolayout.material3.text
+import androidx.wear.protolayout.material3.textButton
+import androidx.wear.protolayout.material3.textEdgeButton
+import androidx.wear.protolayout.material3.titleCard
+import androidx.wear.protolayout.types.LayoutString
 import com.popemkt.watchcal.domain.AgendaEntry
 import com.popemkt.watchcal.domain.ReminderState
 import java.text.SimpleDateFormat
@@ -41,12 +41,13 @@ sealed interface TileModel {
 }
 
 /**
- * Builds the tile's ProtoLayout from a resolved [TileModel]. Pure presentation —
- * no data access, no side effects (specs/01-architecture.md § Tile surface).
+ * Builds the tile's ProtoLayout from a resolved [TileModel] using Material 3
+ * (`materialScope { primaryLayout(...) }`), so the tile shares the app's M3 look
+ * (specs/01-architecture.md § Tile surface). Pure presentation — no data access, no side effects.
  *
- * Layout: a position/time caption, a large tappable card (title + next-tap hint) that
- * cycles the reminder state, a `‹ ›` nav row, and an `Open` chip — every action a big,
- * thumb-friendly target on a round screen.
+ * Layout: a position/time caption in the title slot, a tappable `titleCard` (title + next-tap
+ * hint) that cycles the reminder state plus a `‹ ›` nav row in the main slot, and an `Open`
+ * `textEdgeButton` hugging the round bottom edge.
  */
 object AgendaTileRenderer {
 
@@ -58,106 +59,56 @@ object AgendaTileRenderer {
     private const val PACKAGE = "com.popemkt.watchcal"
     private const val MAIN_ACTIVITY = "com.popemkt.watchcal.ui.MainActivity"
 
-    private const val COLOR_ON_SURFACE = 0xFFFFFFFF.toInt()
-    private const val COLOR_MUTED = 0xFF9E9E9E.toInt()
-    private const val COLOR_ACCENT = 0xFF4DB6A4.toInt()
-
     fun render(context: Context, params: DeviceParameters, model: TileModel): LayoutElement =
-        when (model) {
-            TileModel.NeedsPermission ->
-                message(context, params, "Open WatchCal to grant calendar access")
-            TileModel.Empty -> message(context, params, "Nothing ahead")
-            is TileModel.Card -> card(context, params, model)
+        materialScope(context, params) {
+            when (model) {
+                TileModel.NeedsPermission -> messageLayout("Open WatchCal to grant calendar access")
+                TileModel.Empty -> messageLayout("Nothing ahead")
+                is TileModel.Card -> cardLayout(context, model)
+            }
         }
 
-    private fun card(context: Context, params: DeviceParameters, model: TileModel.Card): LayoutElement {
-        val content = Column.Builder()
+    private fun MaterialScope.messageLayout(msg: String): LayoutElement =
+        primaryLayout(
+            mainSlot = { text(LayoutString(msg), maxLines = MAX_MESSAGE_LINES) },
+            bottomSlot = { openEdgeButton() },
+        )
+
+    private fun MaterialScope.cardLayout(context: Context, model: TileModel.Card): LayoutElement =
+        primaryLayout(
+            titleSlot = { text(LayoutString(captionText(context, model)), typography = Typography.LABEL_SMALL) },
+            mainSlot = { eventColumn(model) },
+            bottomSlot = { openEdgeButton() },
+        )
+
+    private fun MaterialScope.eventColumn(model: TileModel.Card): LayoutElement {
+        val column = Column.Builder()
             .setWidth(expand())
             .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
-            .addContent(caption(context, captionText(context, model)))
-            .addContent(Spacer.Builder().setHeight(dp(4f)).build())
-            .addContent(eventCard(context, model.entry))
-            .addContent(Spacer.Builder().setHeight(dp(8f)).build())
-            .addContent(cycleRow(context, model.total))
-            .build()
-
-        return PrimaryLayout.Builder(params)
-            .setResponsiveContentInsetEnabled(true)
-            .setContent(content)
-            .setPrimaryChipContent(openChip(context, params))
-            .build()
+            .addContent(eventCard(model.entry))
+        if (model.total > 1) {
+            column.addContent(Spacer.Builder().setHeight(dp(6f)).build())
+            column.addContent(navRow())
+        }
+        return column.build()
     }
 
-    /** The big tap target: title + next-tap hint, wrapped in a padded clickable that cycles state. */
-    private fun eventCard(context: Context, entry: AgendaEntry): LayoutElement {
-        val done = entry.state is ReminderState.Done
-        val titleColor = if (done) COLOR_MUTED else COLOR_ON_SURFACE
+    private fun MaterialScope.eventCard(entry: AgendaEntry): LayoutElement =
+        titleCard(
+            onClick = loadClickable(ID_TOGGLE),
+            title = { text(LayoutString(entry.instance.title), maxLines = MAX_TITLE_LINES) },
+            content = { text(LayoutString(nextTapHint(entry.state))) },
+        )
 
-        val block = Column.Builder()
-            .setWidth(expand())
-            .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
-            .setModifiers(
-                Modifiers.Builder()
-                    .setClickable(loadClickable(ID_TOGGLE))
-                    .setPadding(Padding.Builder().setAll(dp(6f)).build())
-                    .build(),
-            )
-            .addContent(
-                Text.Builder(context, entry.instance.title)
-                    .setTypography(Typography.TYPOGRAPHY_TITLE3)
-                    .setColor(argb(titleColor))
-                    .setMaxLines(MAX_TITLE_LINES)
-                    .build(),
-            )
-            .addContent(Spacer.Builder().setHeight(dp(2f)).build())
-            .addContent(
-                Text.Builder(context, nextTapHint(entry.state))
-                    .setTypography(Typography.TYPOGRAPHY_CAPTION2)
-                    .setColor(argb(COLOR_ACCENT))
-                    .setMaxLines(1)
-                    .build(),
-            )
-            .build()
-        return block
-    }
-
-    private fun cycleRow(context: Context, total: Int): LayoutElement {
-        val canCycle = total > 1
-        return Row.Builder()
-            .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
-            .addContent(stepButton(context, "‹", ID_PREV, canCycle))
-            .addContent(Spacer.Builder().setWidth(dp(16f)).build())
-            .addContent(stepButton(context, "›", ID_NEXT, canCycle))
-            .build()
-    }
-
-    private fun stepButton(context: Context, glyph: String, id: String, enabled: Boolean): LayoutElement =
-        Button.Builder(context, loadClickable(id))
-            .setTextContent(if (enabled) glyph else " ")
+    private fun MaterialScope.navRow(): LayoutElement =
+        Row.Builder()
+            .addContent(textButton(loadClickable(ID_PREV), { text(LayoutString("‹")) }))
+            .addContent(Spacer.Builder().setWidth(dp(12f)).build())
+            .addContent(textButton(loadClickable(ID_NEXT), { text(LayoutString("›")) }))
             .build()
 
-    private fun openChip(context: Context, params: DeviceParameters): LayoutElement =
-        CompactChip.Builder(context, "Open", openClickable(), params).build()
-
-    private fun message(context: Context, params: DeviceParameters, text: String): LayoutElement =
-        PrimaryLayout.Builder(params)
-            .setResponsiveContentInsetEnabled(true)
-            .setContent(
-                Text.Builder(context, text)
-                    .setTypography(Typography.TYPOGRAPHY_BODY2)
-                    .setColor(argb(COLOR_ON_SURFACE))
-                    .setMaxLines(MAX_MESSAGE_LINES)
-                    .build(),
-            )
-            .setPrimaryChipContent(openChip(context, params))
-            .build()
-
-    private fun caption(context: Context, text: String): LayoutElement =
-        Text.Builder(context, text)
-            .setTypography(Typography.TYPOGRAPHY_CAPTION2)
-            .setColor(argb(COLOR_ACCENT))
-            .setMaxLines(1)
-            .build()
+    private fun MaterialScope.openEdgeButton(): LayoutElement =
+        textEdgeButton(openClickable()) { text(LayoutString("Open")) }
 
     private fun captionText(context: Context, model: TileModel.Card): String {
         val day = dayLabel(model.entry.instance.beginMillis)
