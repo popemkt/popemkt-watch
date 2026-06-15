@@ -69,9 +69,10 @@ A swipe away from the watch face, WatchCal offers a **tile** — a glanceable wi
 - Shows **one event at a time**: its day label (`Today`/`Tomorrow`/weekday/date), title, start time (or `all day`), and a position counter (`2 / 5`). Done/snoozed events carry the same state glyph (`✓`/`Zz`) the agenda uses.
 - The tile is **forward-looking**: it cycles the events from now onward (anything not yet ended), soonest first. Past/missed items live in the app, not the glance.
 - **Cycle with `‹` / `›`** buttons — step to the previous / next event in place. The tile **remembers the cursor** between glances, so you return to where you left off; it clamps back into range when the calendar shifts under it.
-- An **`Open`** chip launches the full app (at the agenda) for actions and history.
+- **Tapping the event card cycles its reminder state** — the same one gesture as an agenda row: upcoming/missed → **Done** → **snoozed for one interval** → **upcoming**. The card names the next tap's outcome (`tap: done`, `done → snooze`, `snoozed → reset`) so the gesture is never a mystery, exactly as in the agenda. A done card is muted with a `✓`; a snoozed one shows `Zz`.
+- An **`Open`** chip launches the full app (at the agenda) for the longer view and history.
 - When nothing is ahead, the tile says `Nothing ahead`. Before calendar access is granted, it says so and the whole tile taps through to the app to grant.
-- The tile is **read-only and passive**: it never fires reminders, schedules nothing, and adds no wakeups — it renders from the same calendar mirror and persisted reminder state the app does. (Acting on a reminder — Done/Snooze — stays in the app and the alarm notification; the tile is for *seeing* what's next.)
+- The tile **schedules nothing on its own and adds no periodic wakeup** — it renders from the same calendar mirror and persisted reminder state the app does. The only writes are **user-initiated**: a card tap routes through the same reminder action the agenda and the notification buttons use (which re-arms the single existing alarm — not a new wakeup source).
 
 ## Sync
 

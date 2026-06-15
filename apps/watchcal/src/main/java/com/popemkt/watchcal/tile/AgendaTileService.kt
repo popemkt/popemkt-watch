@@ -13,6 +13,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.popemkt.watchcal.App
 import com.popemkt.watchcal.domain.AgendaEntry
 import com.popemkt.watchcal.domain.ReminderDefaults
+import com.popemkt.watchcal.domain.ReminderState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -62,15 +63,33 @@ class AgendaTileService : TileService() {
             .build()
     }
 
-    /** Permission gate → load forward events → step + clamp the persisted cursor. */
+    /**
+     * Permission gate → load forward events → step + clamp the cursor, and — when the tap was
+     * the card — cycle the focused event's state through [ReminderCoordinator] before redrawing.
+     */
     private suspend fun resolveModel(requestParams: RequestBuilders.TileRequest): TileModel {
         if (!hasCalendarPermission()) return TileModel.NeedsPermission
 
-        val entries = forwardEntries()
+        val tappedId = requestParams.currentState.lastClickableId
+        var entries = forwardEntries()
         if (entries.isEmpty()) return TileModel.Empty
 
-        val index = steppedCursor(requestParams.currentState.lastClickableId, entries.lastIndex)
+        val index = steppedCursor(tappedId, entries.lastIndex)
+        if (tappedId == AgendaTileRenderer.ID_TOGGLE) {
+            cycleState(entries[index])
+            entries = forwardEntries() // re-read so the card reflects the new state
+        }
         return TileModel.Card(entries[index], index, entries.size)
+    }
+
+    /** The agenda's one-tap cycle: upcoming → done → snooze → reset (00-product § Tile). */
+    private suspend fun cycleState(entry: AgendaEntry) {
+        val key = entry.instance.instanceKey
+        when (entry.state) {
+            ReminderState.Done -> app.reminderCoordinator.snooze(key)
+            is ReminderState.Snoozed -> app.reminderCoordinator.reset(key)
+            else -> app.reminderCoordinator.markDone(key)
+        }
     }
 
     private suspend fun forwardEntries(): List<AgendaEntry> {

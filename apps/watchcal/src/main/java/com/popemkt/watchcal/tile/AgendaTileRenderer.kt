@@ -14,6 +14,8 @@ import androidx.wear.protolayout.LayoutElementBuilders.Column
 import androidx.wear.protolayout.LayoutElementBuilders.Row
 import androidx.wear.protolayout.LayoutElementBuilders.Spacer
 import androidx.wear.protolayout.ModifiersBuilders.Clickable
+import androidx.wear.protolayout.ModifiersBuilders.Modifiers
+import androidx.wear.protolayout.ModifiersBuilders.Padding
 import androidx.wear.protolayout.material.Button
 import androidx.wear.protolayout.material.CompactChip
 import androidx.wear.protolayout.material.Text
@@ -41,13 +43,19 @@ sealed interface TileModel {
 /**
  * Builds the tile's ProtoLayout from a resolved [TileModel]. Pure presentation —
  * no data access, no side effects (specs/01-architecture.md § Tile surface).
+ *
+ * Layout: a position/time caption, a large tappable card (title + next-tap hint) that
+ * cycles the reminder state, a `‹ ›` nav row, and an `Open` chip — every action a big,
+ * thumb-friendly target on a round screen.
  */
 object AgendaTileRenderer {
 
     const val ID_PREV = "prev"
     const val ID_NEXT = "next"
+    const val ID_TOGGLE = "toggle"
     const val ID_OPEN = "open"
 
+    private const val PACKAGE = "com.popemkt.watchcal"
     private const val MAIN_ACTIVITY = "com.popemkt.watchcal.ui.MainActivity"
 
     private const val COLOR_ON_SURFACE = 0xFFFFFFFF.toInt()
@@ -63,23 +71,12 @@ object AgendaTileRenderer {
         }
 
     private fun card(context: Context, params: DeviceParameters, model: TileModel.Card): LayoutElement {
-        val entry = model.entry
-        val done = entry.state is ReminderState.Done
-        val titleColor = if (done) COLOR_MUTED else COLOR_ON_SURFACE
-
         val content = Column.Builder()
             .setWidth(expand())
             .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
             .addContent(caption(context, captionText(context, model)))
-            .addContent(Spacer.Builder().setHeight(dp(2f)).build())
-            .addContent(
-                Text.Builder(context, entry.instance.title)
-                    .setTypography(Typography.TYPOGRAPHY_TITLE3)
-                    .setColor(argb(titleColor))
-                    .setMaxLines(MAX_TITLE_LINES)
-                    .build(),
-            )
-            .addContent(caption(context, timeLabel(context, entry)))
+            .addContent(Spacer.Builder().setHeight(dp(4f)).build())
+            .addContent(eventCard(context, model.entry))
             .addContent(Spacer.Builder().setHeight(dp(8f)).build())
             .addContent(cycleRow(context, model.total))
             .build()
@@ -91,12 +88,45 @@ object AgendaTileRenderer {
             .build()
     }
 
+    /** The big tap target: title + next-tap hint, wrapped in a padded clickable that cycles state. */
+    private fun eventCard(context: Context, entry: AgendaEntry): LayoutElement {
+        val done = entry.state is ReminderState.Done
+        val titleColor = if (done) COLOR_MUTED else COLOR_ON_SURFACE
+
+        val block = Column.Builder()
+            .setWidth(expand())
+            .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
+            .setModifiers(
+                Modifiers.Builder()
+                    .setClickable(loadClickable(ID_TOGGLE))
+                    .setPadding(Padding.Builder().setAll(dp(6f)).build())
+                    .build(),
+            )
+            .addContent(
+                Text.Builder(context, entry.instance.title)
+                    .setTypography(Typography.TYPOGRAPHY_TITLE3)
+                    .setColor(argb(titleColor))
+                    .setMaxLines(MAX_TITLE_LINES)
+                    .build(),
+            )
+            .addContent(Spacer.Builder().setHeight(dp(2f)).build())
+            .addContent(
+                Text.Builder(context, nextTapHint(entry.state))
+                    .setTypography(Typography.TYPOGRAPHY_CAPTION2)
+                    .setColor(argb(COLOR_ACCENT))
+                    .setMaxLines(1)
+                    .build(),
+            )
+            .build()
+        return block
+    }
+
     private fun cycleRow(context: Context, total: Int): LayoutElement {
         val canCycle = total > 1
         return Row.Builder()
             .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
             .addContent(stepButton(context, "‹", ID_PREV, canCycle))
-            .addContent(Spacer.Builder().setWidth(dp(12f)).build())
+            .addContent(Spacer.Builder().setWidth(dp(16f)).build())
             .addContent(stepButton(context, "›", ID_NEXT, canCycle))
             .build()
     }
@@ -130,10 +160,18 @@ object AgendaTileRenderer {
             .build()
 
     private fun captionText(context: Context, model: TileModel.Card): String {
-        val position = "${model.index + 1} / ${model.total}"
         val day = dayLabel(model.entry.instance.beginMillis)
+        val time = timeLabel(context, model.entry)
+        val position = "${model.index + 1} / ${model.total}"
         val glyph = stateGlyph(model.entry.state)
-        return listOfNotNull(day, position, glyph).joinToString("  ·  ")
+        return listOfNotNull(day, time, position, glyph).joinToString("  ·  ")
+    }
+
+    /** Names the outcome of the next card tap — parity with the agenda row's state line. */
+    private fun nextTapHint(state: ReminderState?): String = when (state) {
+        ReminderState.Done -> "done → snooze"
+        is ReminderState.Snoozed -> "snoozed → reset"
+        else -> "tap: done"
     }
 
     private fun stateGlyph(state: ReminderState?): String? = when (state) {
@@ -155,7 +193,7 @@ object AgendaTileRenderer {
                 ActionBuilders.LaunchAction.Builder()
                     .setAndroidActivity(
                         ActionBuilders.AndroidActivity.Builder()
-                            .setPackageName("com.popemkt.watchcal")
+                            .setPackageName(PACKAGE)
                             .setClassName(MAIN_ACTIVITY)
                             .build(),
                     )

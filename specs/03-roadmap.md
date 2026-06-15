@@ -22,7 +22,7 @@ The reminder engine becomes airtight; removes the remaining heuristics.
 
 ## P2 — Reach without opening the app (Wear-native surfaces)
 
-- ◐ **Tile** — glanceable next-events widget: one event card (day/title/time/state glyph + `N/M`), `‹`/`›` to cycle, `Open` to launch the app. Read-only, zero new wakeups; renders from the calendar mirror + persisted state. Cursor persists across glances (`TileCursorStore` + `lastClickableId`). Done/Snooze deferred to the app (01-architecture § Tile surface decision record).
+- ☑ **Tile** — glanceable next-events widget: one event card (day/title/time/state glyph + `N/M`), `‹`/`›` to cycle events, **tap card to cycle reminder state** (upcoming → done → snooze → reset, full agenda parity), `Open` to launch the app. Renders from the calendar mirror + persisted state, schedules nothing on a glance; the card tap re-arms the existing alarm (user-initiated, no new wakeup). Cursor persists across glances (`TileCursorStore` + `lastClickableId`).
 - ☐ **Complication** — countdown to next event on the watch face.
 - ☐ **Ongoing Activity** while a reminder is live.
 
