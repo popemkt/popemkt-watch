@@ -12,6 +12,7 @@ import androidx.wear.protolayout.LayoutElementBuilders.Column
 import androidx.wear.protolayout.LayoutElementBuilders.Row
 import androidx.wear.protolayout.LayoutElementBuilders.Spacer
 import androidx.wear.protolayout.ModifiersBuilders.Clickable
+import androidx.wear.protolayout.material3.CardColors
 import androidx.wear.protolayout.material3.MaterialScope
 import androidx.wear.protolayout.material3.Typography
 import androidx.wear.protolayout.material3.materialScope
@@ -98,6 +99,7 @@ object AgendaTileRenderer {
             onClick = loadClickable(ID_TOGGLE),
             title = { text(LayoutString(entry.instance.title), maxLines = MAX_TITLE_LINES) },
             content = { text(LayoutString(nextTapHint(entry.state))) },
+            colors = eventCardColors(entry.state),
         )
 
     private fun MaterialScope.navRow(): LayoutElement =
@@ -109,6 +111,29 @@ object AgendaTileRenderer {
 
     private fun MaterialScope.openEdgeButton(): LayoutElement =
         textEdgeButton(openClickable()) { text(LayoutString("Open")) }
+
+    private fun MaterialScope.eventCardColors(state: ReminderState?): CardColors {
+        val background = when (state) {
+            ReminderState.Done -> colorScheme.secondaryContainer
+            is ReminderState.Snoozed -> colorScheme.tertiaryContainer
+            else -> colorScheme.primaryContainer
+        }
+        val foreground = when (state) {
+            ReminderState.Done -> colorScheme.onSecondaryContainer
+            is ReminderState.Snoozed -> colorScheme.onTertiaryContainer
+            else -> colorScheme.onPrimaryContainer
+        }
+        return CardColors().copy(
+            backgroundColor = background,
+            titleColor = foreground,
+            contentColor = foreground,
+            timeColor = foreground,
+            labelColor = foreground,
+            secondaryIconColor = foreground,
+            secondaryTextColor = foreground,
+            graphicIconColor = foreground,
+        )
+    }
 
     private fun captionText(context: Context, model: TileModel.Card): String {
         val day = dayLabel(model.entry.instance.beginMillis)

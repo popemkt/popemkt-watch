@@ -68,7 +68,7 @@ The app screen is a minimal agenda:
 A swipe away from the watch face, WatchCal offers a **tile** — a glanceable widget for the calendar without opening the app:
 
 - Shows **one event at a time**: its day label (`Today`/`Tomorrow`/weekday/date), title, start time (or `all day`), and a position counter (`2 / 5`). Done/snoozed events carry the same state glyph (`✓`/`Zz`) the agenda uses.
-- The tile is **forward-looking**: it cycles the events from now onward (anything not yet ended), soonest first. Past/missed items live in the app, not the glance.
+- The tile uses the **same agenda item set as the app**: the whole mirrored agenda window, past included, soonest order. Because a tile cannot scroll, it shows one item at a time and `‹` / `›` cycles through that same list. Snoozed items remain visible even when their original event is earlier in the day; the `Zz` state and `snoozed → reset` hint make the active reminder loop visible from the glance.
 - **Cycle with `‹` / `›`** buttons — step to the previous / next event in place. The tile **remembers the cursor** between glances, so you return to where you left off; it clamps back into range when the calendar shifts under it.
 - **Tapping the event card cycles its reminder state** — the same one gesture as an agenda row: upcoming/missed → **Done** → **snoozed for one interval** → **upcoming**. The card names the next tap's outcome (`tap: done`, `done → snooze`, `snoozed → reset`) so the gesture is never a mystery, exactly as in the agenda. A done card is muted with a `✓`; a snoozed one shows `Zz`.
 - An **`Open`** chip launches the full app (at the agenda) for the longer view and history.

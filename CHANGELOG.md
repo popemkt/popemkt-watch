@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Tile event pill now uses explicit Material 3 colors for the focused item state: upcoming/default, done, and snoozed cards get distinct color roles while the `Open` edge button keeps its standard launch styling.
+
+- Added a concise repo-local `watchcal-install` skill documenting the release build, wireless-adb discovery, install, permission grant, launch, and verification workflow for the Xiaomi Watch 5.
+
+- Tile list parity: the tile now cycles through the same agenda-window item set as the app instead of only future/not-ended events, so past, done, all-day, and snoozed reminders remain reachable from the glance. Shared domain policy now owns agenda-entry mapping and the one-tap state-cycle decision used by both app and tile.
+
 - Launcher icon now uses the supplied cube/calendar artwork. The untouched source PNG is kept outside packaged resources as `apps/watchcal/artwork/ic_launcher_source_original.png`; the adaptive icon uses a padded, compressed foreground PNG (`ic_launcher_art.png`, 330 px artwork on a 432 px canvas / 71 KB) over a black background so it clears the circular launcher mask.
 
 - Next reminder batch: per-event lead times, snooze cycle, and watch-face complication. Calendar reads now join `WearableCalendarContract.Reminders` so upcoming reminders fire at the earliest mirrored lead instead of only event start, falling back to start when no lead is mirrored. Snooze now cycles per instance through 5 min / 10 min / 30 min / 1 hour, seeded by the configured interval. Added a read-only SHORT_TEXT complication data source showing the next event countdown and tapping into the agenda, using the platform 5-minute complication cadence without adding app-owned wakeups. Specs updated in `00-product.md`, `01-architecture.md`, and `03-roadmap.md`.

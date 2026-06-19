@@ -28,8 +28,8 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
 import com.popemkt.watchcal.App
 import com.popemkt.watchcal.domain.AgendaEntry
+import com.popemkt.watchcal.domain.AgendaPolicy
 import com.popemkt.watchcal.domain.ReminderDefaults
-import com.popemkt.watchcal.domain.ReminderState
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -69,7 +69,7 @@ private fun WatchCalRoot(app: App) {
             now + ReminderDefaults.AGENDA_FORWARD_MILLIS,
         )
         val states = app.stateStore.states()
-        value = instances.map { AgendaEntry(it, states[it.instanceKey]) }
+        value = AgendaPolicy.entries(instances, states)
     }
 
     if (showSettings) {
@@ -89,12 +89,7 @@ private fun WatchCalRoot(app: App) {
         onToggleDone = { entry ->
             scope.launch {
                 val key = entry.instance.instanceKey
-                // Cycle: upcoming → done → snoozed → upcoming (00-product § Agenda).
-                when (entry.state) {
-                    ReminderState.Done -> app.reminderCoordinator.snooze(key)
-                    is ReminderState.Snoozed -> app.reminderCoordinator.reset(key)
-                    else -> app.reminderCoordinator.markDone(key)
-                }
+                app.reminderCoordinator.applyTapAction(key, AgendaPolicy.tapAction(entry.state))
                 refreshTick++
             }
         },

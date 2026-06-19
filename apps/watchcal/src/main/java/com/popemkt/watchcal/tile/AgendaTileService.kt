@@ -12,8 +12,8 @@ import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import com.popemkt.watchcal.App
 import com.popemkt.watchcal.domain.AgendaEntry
+import com.popemkt.watchcal.domain.AgendaPolicy
 import com.popemkt.watchcal.domain.ReminderDefaults
-import com.popemkt.watchcal.domain.ReminderState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -82,24 +82,17 @@ class AgendaTileService : TileService() {
         return TileModel.Card(entries[index], index, entries.size)
     }
 
-    /** The agenda's one-tap cycle: upcoming → done → snooze → reset (00-product § Tile). */
     private suspend fun cycleState(entry: AgendaEntry) {
         val key = entry.instance.instanceKey
-        when (entry.state) {
-            ReminderState.Done -> app.reminderCoordinator.snooze(key)
-            is ReminderState.Snoozed -> app.reminderCoordinator.reset(key)
-            else -> app.reminderCoordinator.markDone(key)
-        }
+        app.reminderCoordinator.applyTapAction(key, AgendaPolicy.tapAction(entry.state))
     }
 
     private suspend fun forwardEntries(): List<AgendaEntry> {
         val now = System.currentTimeMillis()
         val instances = app.calendarSource
-            .instances(now, now + ReminderDefaults.AGENDA_FORWARD_MILLIS)
-            .filter { it.endMillis >= now }
-            .sortedBy { it.beginMillis }
+            .instances(now - ReminderDefaults.AGENDA_LOOKBACK_MILLIS, now + ReminderDefaults.AGENDA_FORWARD_MILLIS)
         val states = app.stateStore.states()
-        return instances.map { AgendaEntry(it, states[it.instanceKey]) }
+        return AgendaPolicy.entries(instances, states)
     }
 
     private suspend fun steppedCursor(lastClickableId: String, lastIndex: Int): Int {

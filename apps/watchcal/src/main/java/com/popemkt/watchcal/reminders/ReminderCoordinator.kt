@@ -1,6 +1,7 @@
 package com.popemkt.watchcal.reminders
 
 import com.popemkt.watchcal.calendar.CalendarSource
+import com.popemkt.watchcal.domain.AgendaPolicy
 import com.popemkt.watchcal.domain.ReminderDefaults
 import com.popemkt.watchcal.domain.ReminderPlanner
 import com.popemkt.watchcal.domain.ReminderState
@@ -62,6 +63,14 @@ class ReminderCoordinator(
         notifier.cancel(instanceKey)
         stateStore.markDone(instanceKey)
         refresh()
+    }
+
+    suspend fun applyTapAction(instanceKey: String, action: AgendaPolicy.TapAction) {
+        when (action) {
+            AgendaPolicy.TapAction.MarkDone -> markDone(instanceKey)
+            AgendaPolicy.TapAction.Snooze -> snooze(instanceKey)
+            AgendaPolicy.TapAction.Reset -> reset(instanceKey)
+        }
     }
 
     /** Back to Upcoming: fires at the event trigger again, or is missed if the trigger already passed. */
